@@ -89,6 +89,18 @@ badges, une mascotte chamelle qui encourage en darija, des bruitages, et un jeu
 de paires par thème. Les sessions sont courtes exprès : 4 manches pour la petite,
 6 pour le moyen, 8 pour l'adulte.
 
+### Écouter en boucle
+
+Un mode **📻 Écouter** fait défiler les mots tout seuls : le darija, une pause, la
+traduction française, puis le mot suivant, en boucle. On pose le téléphone — c'est
+fait pour la voiture, le bain ou le coucher. On choisit la source (tout mélangé, les
+mots à réviser, ou un thème), et deux bascules règlent l'écoute : avec ou sans le
+français, à vitesse normale ou lente. L'écran reste allumé quand le navigateur le
+permet.
+
+Cette écoute passive ne touche pas à la révision espacée : entendre un mot n'est pas
+s'en souvenir, et fausser la boîte de Leitner rendrait les révisions inutiles.
+
 ### Les histoires
 
 Cinq mini-histoires illustrées de huit scènes — le matin, le marché, le chat perdu,
@@ -238,4 +250,3 @@ en mode tout-petit, `notes: [...]` ajoute les explications de grammaire vues par
 ## Pistes pour la suite
 
 - D'autres histoires, et des histoires plus longues à mesure que le vocabulaire grandit
-- Un mode « écoute seule » pour la voiture : les mots défilent sans rien toucher

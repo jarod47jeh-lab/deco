@@ -200,6 +200,9 @@ export function hasArabicVoice() {
 }
 
 let currentAudio = null;
+// Une lecture interrompue doit tenir sa promesse : sans ça, un enchaînement
+// qui l'attend resterait bloqué pour toujours (« pause » en mode écoute).
+let currentResolve = null;
 
 function stopAll() {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
@@ -207,6 +210,16 @@ function stopAll() {
     currentAudio.pause();
     currentAudio = null;
   }
+  if (currentResolve) {
+    const resolve = currentResolve;
+    currentResolve = null;
+    resolve();
+  }
+}
+
+/** Coupe tout ce qui joue. */
+export function stop() {
+  stopAll();
 }
 
 function speak(text, langs, rate) {
@@ -221,7 +234,19 @@ function speak(text, langs, rate) {
       u.lang = langs[0];
     }
     u.rate = rate;
-    u.onend = u.onerror = () => resolve();
+
+    // Certains appareils ne déclenchent jamais onend. Sans ce garde-fou, une
+    // lecture enchaînée (mode écoute, comparaison) resterait bloquée.
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(guard);
+      resolve();
+    };
+    const guard = setTimeout(finish, 2000 + text.length * 180);
+
+    u.onend = u.onerror = finish;
     window.speechSynthesis.speak(u);
   });
 }
@@ -248,8 +273,13 @@ export function playUrl(url, { rate = 1 } = {}) {
     const a = new Audio(url);
     a.playbackRate = rate;
     currentAudio = a;
-    a.onended = a.onerror = () => resolve();
-    a.play().catch(() => resolve());
+    currentResolve = resolve;
+    const done = () => {
+      if (currentResolve === resolve) currentResolve = null;
+      resolve();
+    };
+    a.onended = a.onerror = done;
+    a.play().catch(done);
   });
 }
 

@@ -1,6 +1,6 @@
 // Service worker : l'app fonctionne sans connexion une fois ouverte une première fois.
 
-const CACHE = 'darija-v5';
+const CACHE = 'darija-v6';
 const ASSETS = [
   './',
   './index.html',

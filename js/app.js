@@ -210,10 +210,10 @@ VIEWS.home = () => {
     }, '🏆 Défi famille'));
   }
 
-  wrap.append(el('button', {
-    class: 'primary wide story-btn',
-    onclick: () => go('stories'),
-  }, '📚 Les histoires'));
+  wrap.append(el('div', { class: 'row-btns' }, [
+    el('button', { class: 'primary story-btn', onclick: () => go('stories') }, '📚 Les histoires'),
+    el('button', { class: 'primary listen-btn', onclick: () => go('listenPick') }, '📻 Écouter'),
+  ]));
 
   wrap.append(el('h2', { class: 'section' }, 'Les thèmes'));
   wrap.append(
@@ -456,6 +456,203 @@ VIEWS.memory = ({ unitId }) => {
     wrap.append(el('button', { class: 'primary wide', onclick: () => go('memory', { unitId }, { replace: true }) }, '🔁 Encore'));
   }));
   return wrap;
+};
+
+// --- Écran : écoute en boucle -----------------------------------------------
+//
+// Pensé pour la voiture ou le coucher : les mots défilent seuls, on n'a rien à
+// toucher. Une boucle asynchrone porte un jeton ; quitter l'écran l'invalide,
+// sinon deux lectures se superposeraient au retour.
+
+let listenToken = 0;
+
+VIEWS.listen = ({ unitId }) => {
+  const p = store.active();
+  const cfg = store.mode(p);
+
+  // Trois sources possibles : un thème, les mots à réviser, ou tout ce qui est ouvert.
+  let queue;
+  let title;
+  if (unitId === 'due') {
+    queue = shuffle(store.dueItems(ALL_ITEMS, p));
+    title = 'À réviser';
+  } else if (unitId === 'all') {
+    const units = UNITS.filter((u) => (cfg.id === 'petit' ? u.kid : true));
+    queue = shuffle(units.flatMap((u) => u.items.map((i) => ({ ...i, unit: u.id }))));
+    title = 'Tout mélangé';
+  } else {
+    const u = UNIT_BY_ID[unitId];
+    queue = u.items.map((i) => ({ ...i, unit: u.id }));
+    title = u.title;
+  }
+
+  if (!queue.length) {
+    return el('div', { class: 'screen center' }, [
+      header('📻 Écouter'),
+      mascot('Rien à écouter ici pour l’instant — reviens après avoir joué un peu.'),
+      el('button', { class: 'primary wide', onclick: () => back() }, 'Retour'),
+    ]);
+  }
+
+  const token = ++listenToken;
+  let seq = 0;          // invalide l'itération en cours quand on saute ou qu'on met en pause
+  let idx = 0;
+  let paused = false;
+  let withFrench = true;
+  let slow = false;
+
+  const card = el('div', { class: 'learn-card listen-card' });
+  // Pas d'animation ici : c'est un contrôle de lecture, pas un appel à toucher.
+  const playBtn = el('button', { class: 'big-speaker steady' }, '⏸️');
+  const counter = el('p', { class: 'hint' });
+
+  const draw = () => {
+    const it = queue[idx];
+    clear(card);
+    card.append(
+      el('span', { class: 'emoji hero-size' }, it.emoji),
+      el('p', { class: 'learn-fr' }, it.fr),
+      el('p', { class: 'learn-dr' }, it.dr),
+      cfg.showArabic && it.ar ? el('p', { class: 'learn-ar' }, it.ar) : null
+    );
+    counter.textContent = `${idx + 1} / ${queue.length} · ${title}`;
+  };
+
+  // Attend en petites tranches, pour réagir vite à une sortie d'écran.
+  const idle = async (ms) => {
+    for (let t = 0; t < ms && token === listenToken; t += 120) await wait(120);
+  };
+
+  /**
+   * Joue le mot courant puis appelle la suite. Chaque itération porte son
+   * numéro : sauter ou mettre en pause en crée une nouvelle, et l'ancienne
+   * s'arrête au lieu de faire avancer l'index une seconde fois.
+   */
+  const playCurrent = async () => {
+    const mine = ++seq;
+    const alive = () => mine === seq && token === listenToken && !paused;
+
+    draw();
+    const it = queue[idx];
+
+    await audio.playItem(it, { slow });
+    if (!alive()) return;
+    await idle(500);
+    if (!alive()) return;
+
+    if (withFrench) {
+      await audio.playFrench(it.fr);
+      if (!alive()) return;
+      await idle(400);
+      if (!alive()) return;
+    }
+
+    idx = (idx + 1) % queue.length;
+    playCurrent();
+  };
+
+  const step = (delta) => {
+    idx = (idx + delta + queue.length) % queue.length;
+    seq++;              // l'itération précédente se retire
+    audio.stop();
+    paused = false;
+    playBtn.textContent = '⏸️';
+    playCurrent();
+  };
+
+  // Garder l'écran allumé si le navigateur le permet — utile en voiture.
+  let wakeLock = null;
+  if (navigator.wakeLock) {
+    navigator.wakeLock.request('screen').then((wl) => {
+      wakeLock = wl;
+      if (token !== listenToken) wl.release().catch(() => {});
+    }).catch(() => { /* refusé ou indisponible */ });
+  }
+
+  const leave = () => {
+    listenToken++; // invalide la boucle en cours
+    audio.stop();
+    if (wakeLock) wakeLock.release().catch(() => {});
+    back();
+  };
+
+  playBtn.addEventListener('click', () => {
+    if (paused) {
+      step(0); // reprend en rejouant le mot courant depuis le début
+    } else {
+      paused = true;
+      seq++;
+      audio.stop();
+      playBtn.textContent = '▶️';
+    }
+  });
+
+  playCurrent();
+
+  return el('div', { class: 'screen' }, [
+    el('header', { class: 'topbar' }, [
+      el('button', { class: 'icon-btn', onclick: leave, 'aria-label': 'Retour' }, '←'),
+      el('h1', {}, '📻 Écouter'),
+      el('span', { class: 'icon-btn ghost' }, ''),
+    ]),
+    card,
+    counter,
+    el('div', { class: 'row-btns' }, [
+      el('button', { class: 'secondary grow', onclick: () => step(-1) }, '⏮️'),
+      playBtn,
+      el('button', { class: 'secondary grow', onclick: () => step(1) }, '⏭️'),
+    ]),
+    el('div', { class: 'row-btns' }, [
+      el('button', {
+        class: 'secondary grow toggle on',
+        onclick: (e) => {
+          withFrench = !withFrench;
+          e.currentTarget.classList.toggle('on', withFrench);
+          e.currentTarget.textContent = withFrench ? '🇫🇷 avec le français' : '🇫🇷 sans le français';
+        },
+      }, '🇫🇷 avec le français'),
+      el('button', {
+        class: 'secondary grow toggle',
+        onclick: (e) => {
+          slow = !slow;
+          e.currentTarget.classList.toggle('on', slow);
+          e.currentTarget.textContent = slow ? '🐢 lent' : '🐇 normal';
+        },
+      }, '🐇 normal'),
+    ]),
+    el('p', { class: 'hint' }, 'Pose le téléphone : les mots continuent tout seuls, en boucle.'),
+  ]);
+};
+
+VIEWS.listenPick = () => {
+  const p = store.active();
+  const cfg = store.mode(p);
+  const due = store.dueItems(ALL_ITEMS, p).length;
+  const units = UNITS.filter((u) => (cfg.id === 'petit' ? u.kid : true));
+
+  return el('div', { class: 'screen' }, [
+    header('📻 Écouter en boucle'),
+    mascot('Les mots défilent tout seuls, sans rien toucher. Parfait en voiture ou avant de dormir.'),
+    el('div', { class: 'row-btns' }, [
+      el('button', { class: 'primary full-row', onclick: () => go('listen', { unitId: 'all' }) }, '🎲 Tout mélangé'),
+      due
+        ? el('button', { class: 'primary full-row', onclick: () => go('listen', { unitId: 'due' }) }, `🔁 Mes mots à réviser (${due})`)
+        : null,
+    ]),
+    el('h2', { class: 'section' }, 'Ou un thème'),
+    el('div', { class: 'unit-grid' },
+      units.map((u) =>
+        el('button', {
+          class: 'unit-card',
+          style: { '--c': u.color },
+          onclick: () => go('listen', { unitId: u.id }),
+        }, [
+          el('span', { class: 'unit-emoji' }, u.emoji),
+          el('span', { class: 'unit-title' }, u.title),
+        ])
+      )
+    ),
+  ]);
 };
 
 // --- Écrans : les histoires -------------------------------------------------
