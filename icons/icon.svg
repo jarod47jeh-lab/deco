@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Yallah Darija">
+  <rect width="512" height="512" rx="112" fill="#c2410c"/>
+  <circle cx="256" cy="236" r="150" fill="#fff7ed"/>
+  <path d="M256 132a104 104 0 1 0 0 208 104 104 0 0 1 0-208z" fill="#c2410c"/>
+  <path d="M256 148l19 44 48 4-36 31 11 47-42-25-42 25 11-47-36-31 48-4z" fill="#16a34a"/>
+  <text x="256" y="452" font-family="Segoe UI, system-ui, sans-serif" font-size="86" font-weight="800"
+        text-anchor="middle" fill="#fff7ed">DARIJA</text>
+</svg>
