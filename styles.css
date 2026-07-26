@@ -324,6 +324,22 @@ h1, h2 { margin: 0; }
 .heard-text { margin: 0; color: var(--muted); }
 .heard-text .ar { color: var(--ink); font-size: 1.4rem; }
 
+/* --- Séance du jour --- */
+
+.daily {
+  display: flex; align-items: center; gap: 14px; text-align: left; width: 100%;
+  background: linear-gradient(135deg, #f59e0b, #c2410c); color: #fff;
+  border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
+  min-height: 76px; transition: transform .1s;
+}
+.daily:active { transform: translateY(2px); }
+.daily.done { background: linear-gradient(135deg, #16a34a, #0891b2); }
+.daily-emoji { font-size: 2.4rem; }
+.daily b { font-size: 1.15rem; }
+/* Sur le fond coloré, le gris de .word-text small deviendrait illisible. */
+.daily .word-text small { color: inherit; opacity: .9; }
+.daily-go { font-size: 1.6rem; opacity: .8; }
+
 /* --- Écoute en boucle --- */
 
 .listen-btn { background: linear-gradient(135deg, #16a34a, #0891b2); }

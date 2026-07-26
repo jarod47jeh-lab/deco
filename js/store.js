@@ -237,6 +237,11 @@ export function dueItems(allItems, p = active()) {
   });
 }
 
+/** A-t-on déjà travaillé aujourd'hui ? La série de jours porte déjà l'information. */
+export function practicedToday(p = active()) {
+  return !!p && p.streak?.last === todayKey();
+}
+
 export function knownCount(p = active()) {
   if (!p) return 0;
   return Object.values(p.srs).filter((c) => c.box >= 3).length;

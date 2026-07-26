@@ -75,6 +75,18 @@ Chaque entrée a : le français, le darija en lettres latines (« arabizi » : `
 `7` = ح, `9` = ق), l'écriture arabe, une image, et parfois une note (féminin, variante…).
 Tout est dans `js/data.js` — un seul fichier à éditer pour ajouter du vocabulaire.
 
+### La séance du jour
+
+L'accueil s'ouvre sur un seul bouton : **🌟 Ma séance du jour**. Il compose lui-même le
+mélange — d'abord les mots dus à la révision, les plus en retard en tête, puis quelques
+mots neufs pris dans le thème déjà entamé plutôt que dans un thème au hasard. La carte
+annonce ce qu'elle contient (« 2 à revoir · 2 nouveaux · Salutations ») et passe au vert
+quand la séance du jour est faite.
+
+C'est ce qui rend l'app utilisable seule par une enfant de 5 ans : elle n'a pas à
+choisir un thème, elle appuie sur l'étoile. Un lien discret « Tout réviser » reste
+disponible quand le retard dépasse une séance.
+
 ### La mémorisation
 
 Une boîte de Leitner tourne en arrière-plan : chaque mot réussi part plus loin dans le

@@ -175,6 +175,48 @@ VIEWS.newProfile = () => {
   ]);
 };
 
+// --- La séance du jour ------------------------------------------------------
+//
+// Sans elle, il faut choisir un thème pour jouer : la plus jeune ne peut pas le
+// faire seule, et un adulte ne sait pas quoi réviser. La séance compose le
+// mélange elle-même — d'abord les mots dus, puis quelques mots neufs pris dans
+// le thème déjà entamé, pour ne pas éparpiller.
+
+function dailyPlan(p, cfg) {
+  const units = UNITS.filter((u) => (cfg.id === 'petit' ? u.kid : true));
+  const pool = units.flatMap((u) => u.items.map((i) => ({ ...i, unit: u.id })));
+
+  // Les plus en retard d'abord.
+  const due = store.dueItems(pool, p).sort((a, b) => (p.srs[a.id].due < p.srs[b.id].due ? -1 : 1));
+
+  const size = cfg.perSession;
+  // On garde toujours de la place pour du neuf, sauf si le retard est énorme.
+  const revisions = due.slice(0, due.length >= size * 2 ? size : Math.max(0, size - 2));
+
+  const unseen = pool.filter((i) => !p.srs[i.id]);
+  const byUnit = new Map();
+  for (const it of unseen) {
+    if (!byUnit.has(it.unit)) byUnit.set(it.unit, []);
+    byUnit.get(it.unit).push(it);
+  }
+  // On continue le thème le plus entamé plutôt que d'en ouvrir un nouveau.
+  const progress = (unitId) => UNIT_BY_ID[unitId].items.filter((i) => p.srs[i.id]).length;
+  const nextUnit = [...byUnit.keys()].sort((a, b) => progress(b) - progress(a))[0];
+  const fresh = (byUnit.get(nextUnit) || []).slice(0, size - revisions.length);
+
+  // Tout est vu et rien n'est dû : on révise quand même, au hasard.
+  const items = [...revisions, ...fresh];
+  if (!items.length) items.push(...sample(pool, Math.min(size, pool.length)));
+
+  return {
+    items: shuffle(items),
+    revisions: revisions.length,
+    fresh: fresh.length,
+    unitId: fresh.length && !revisions.length ? nextUnit : null,
+    unitTitle: nextUnit ? UNIT_BY_ID[nextUnit].title : null,
+  };
+}
+
 // --- Écran : accueil --------------------------------------------------------
 
 VIEWS.home = () => {
@@ -196,11 +238,34 @@ VIEWS.home = () => {
     ),
   ]);
 
-  if (due.length) {
+  const plan = dailyPlan(p, cfg);
+  const doneToday = store.practicedToday(p);
+  const parts = [
+    plan.revisions ? `${plan.revisions} à revoir` : null,
+    plan.fresh ? `${plan.fresh} nouveau${plan.fresh > 1 ? 'x' : ''}${plan.unitTitle ? ' · ' + plan.unitTitle : ''}` : null,
+  ].filter(Boolean);
+
+  wrap.append(el('button', {
+    class: 'daily' + (doneToday ? ' done' : ''),
+    onclick: () => go('session', {
+      itemIds: plan.items.map((i) => i.id),
+      title: 'Séance du jour',
+      unitId: plan.unitId,
+    }),
+  }, [
+    el('span', { class: 'daily-emoji' }, doneToday ? '✅' : '🌟'),
+    el('span', { class: 'word-text' }, [
+      el('b', {}, doneToday ? 'Séance faite ! On en refait une ?' : 'Ma séance du jour'),
+      el('small', {}, parts.join(' · ') || 'Quelques mots au hasard'),
+    ]),
+    el('span', { class: 'daily-go' }, '▶'),
+  ]));
+
+  if (due.length > plan.revisions) {
     wrap.append(el('button', {
-      class: 'primary wide review',
+      class: 'link-btn',
       onclick: () => go('session', { itemIds: sample(due, Math.min(cfg.perSession + 2, due.length)).map((i) => i.id), title: 'Révision', unitId: null }),
-    }, `🔁 Réviser (${due.length})`));
+    }, `🔁 Tout réviser (${due.length} mots en attente)`));
   }
 
   if (store.profiles().length >= 2) {
