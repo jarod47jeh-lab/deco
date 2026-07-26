@@ -1,6 +1,9 @@
 // Service worker : l'app fonctionne sans connexion une fois ouverte une première fois.
 
-const CACHE = 'darija-v7';
+// Remplacé au déploiement par le workflow : chaque mise en ligne repart d'un
+// cache neuf, sans avoir à penser à incrémenter un numéro à la main.
+const VERSION = 'dev';
+const CACHE = 'darija-' + VERSION;
 const ASSETS = [
   './',
   './index.html',
@@ -18,6 +21,7 @@ const ASSETS = [
   './js/zip.js',
   './js/speech.js',
   './js/stories.js',
+  './js/version.js',
 ];
 
 self.addEventListener('install', (e) => {

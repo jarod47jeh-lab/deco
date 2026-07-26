@@ -9,34 +9,59 @@ fichiers que le téléphone garde en mémoire.
 
 ---
 
-## Démarrer en 2 minutes
+## Mettre l'app entre les mains de la famille
 
-L'app est une PWA (une page web installable). Il faut juste un petit serveur local,
-parce que les navigateurs refusent de charger des modules JavaScript en `file://`.
+### La contrainte à connaître
 
-```bash
-# depuis le dossier du projet
-python3 -m http.server 8000
-```
+Les navigateurs refusent le micro et le mode hors ligne aux pages qui ne sont pas
+servies en **https://** (seule exception : `localhost`, sur la machine elle-même).
 
-Puis :
+Concrètement, si vous ouvrez l'app sur un téléphone via `http://IP-DU-PC:8000`, elle
+s'affiche et les jeux tournent, mais **le Studio voix ne peut rien enregistrer et
+l'app ne s'installe pas hors ligne**. L'app le dit maintenant elle-même : un bandeau
+rouge apparaît, et l'espace parents affiche l'état (`Hors ligne : non`, `Micro : bloqué`).
 
-- **sur l'ordinateur** : ouvrir <http://localhost:8000>
-- **sur le téléphone** (même Wi-Fi) : ouvrir `http://IP-DE-L-ORDI:8000`
-  (l'IP se trouve avec `ip addr` sous Linux, `ipconfig` sous Windows)
+Il y a donc deux usages, et un seul convient à un téléphone.
 
-### L'installer sur le téléphone
+### 1. Sur un téléphone : la version en ligne (recommandé)
+
+Le dépôt se publie tout seul sur GitHub Pages, en HTTPS, gratuitement.
+
+**À faire une fois, dans les réglages du dépôt** (c'est la seule étape que je ne peux
+pas faire pour vous) :
+
+1. GitHub → le dépôt → **Settings** → **Pages**
+2. **Source** : choisir **GitHub Actions**
+3. Aller dans l'onglet **Actions** → workflow **« Mise en ligne (GitHub Pages) »** →
+   **Run workflow** (ou pousser un commit, il se déclenche seul)
+
+L'adresse est alors `https://<votre-compte>.github.io/deco/`. Ouvrez-la sur chaque
+téléphone puis :
 
 - **Android / Chrome** : menu ⋮ → « Ajouter à l'écran d'accueil »
 - **iPhone / Safari** : bouton Partager → « Sur l'écran d'accueil »
 
-Une fois installée, elle s'ouvre en plein écran comme une vraie app, **et elle
-fonctionne sans réseau** : le service worker garde tout en cache. L'ordinateur
-n'a besoin d'être allumé que pour la toute première ouverture (et pour les mises à jour).
+À partir de là, l'app s'ouvre en plein écran, fonctionne **sans réseau**, et le Studio
+voix peut enregistrer. Rien d'autre à maintenir : votre ordinateur peut rester éteint.
 
-Quand vous modifiez le contenu — pour ajouter du vocabulaire, par exemple — relancez le
-petit serveur et **ouvrez l'app deux fois** sur le téléphone : la première ouverture
-récupère la nouvelle version en arrière-plan, la seconde l'affiche.
+Chaque mise en ligne estampille la version avec le numéro du commit, visible dans
+l'espace parents — pratique pour savoir ce qui tourne sur quel téléphone. Le cache
+change avec elle, donc les téléphones récupèrent la nouveauté à l'ouverture suivante.
+
+### 2. Sur l'ordinateur : pour développer
+
+```bash
+python3 -m http.server 8000
+```
+
+Puis <http://localhost:8000>. Sur `localhost`, tout fonctionne, micro compris.
+
+### Ce qui reste privé
+
+La page publiée ne contient que l'app : le vocabulaire, les images, le code. **Aucune
+donnée d'apprentissage ne part sur Internet** — les profils, la progression et les
+voix enregistrées restent dans le navigateur de chaque téléphone. La seule exception
+est l'écoute automatique facultative, désactivée par défaut, décrite plus bas.
 
 ---
 
@@ -228,6 +253,7 @@ JSON et de la réimporter (utile pour passer d'un appareil à l'autre).
 ## Structure du projet
 
 ```
+.github/workflows/      mise en ligne automatique sur GitHub Pages
 index.html              coquille de l'app
 styles.css              tout le style (mobile d'abord, thème clair et sombre)
 manifest.webmanifest    métadonnées d'installation
@@ -241,6 +267,7 @@ js/
   zip.js                lecture et écriture d'archives, pour le transfert des voix
   speech.js             reconnaissance vocale facultative et comparaison de graphies
   stories.js            les mini-histoires et leurs questions
+  version.js            numéro de version, estampillé à la mise en ligne
   dom.js                helpers
 icons/                  icônes de l'app
 tools/make_icons.py     régénère les PNG à partir du SVG
@@ -258,6 +285,10 @@ w('eat28', 'Des dattes', 'Tmer', 'تمر', '🌴'),
 Un `id` unique suffit ; le reste (jeux, révision, statistiques) s'adapte tout seul.
 Pour créer un thème, copiez un bloc d'unité existant : `kid: true` le rend visible
 en mode tout-petit, `notes: [...]` ajoute les explications de grammaire vues par les adultes.
+
+Poussez ensuite sur la branche : la mise en ligne se refait toute seule. Sur les
+téléphones, la nouveauté apparaît à la **deuxième** ouverture — la première la
+récupère en arrière-plan.
 
 ## Pistes pour la suite
 

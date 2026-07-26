@@ -6,6 +6,7 @@ import * as audio from './audio.js';
 import { ROUNDS, chooseRound, memoryBoard } from './games.js';
 import { STORIES, STORY_BY_ID, STORY_UNITS, storyWordIds } from './stories.js';
 import * as speech from './speech.js';
+import { VERSION } from './version.js';
 import { el, clear, shuffle, sample, pick, wait } from './dom.js';
 
 const app = document.getElementById('app');
@@ -72,6 +73,21 @@ function download(blob, filename) {
     a.remove();
     URL.revokeObjectURL(url);
   }, 10000);
+}
+
+/**
+ * Hors HTTPS (et hors localhost), le navigateur coupe le micro et le service
+ * worker sans rien dire. Mieux vaut l'expliquer que laisser croire à une panne.
+ */
+const restricted = () => !window.isSecureContext;
+
+function insecureWarning(what) {
+  if (!restricted()) return null;
+  return el('div', { class: 'warn' }, [
+    el('b', {}, '⚠️ Connexion non sécurisée'),
+    el('p', {}, `${what} a besoin d’une adresse en https:// (ou de localhost). ` +
+      'Depuis un téléphone, ouvre la version en ligne de l’app — voir le README.'),
+  ]);
 }
 
 function mascot(text) {
@@ -958,6 +974,7 @@ VIEWS.pronounce = ({ unitId, i }) => {
 
   return el('div', { class: 'screen', style: { '--c': u.color } }, [
     header(`🎤 Prononcer · ${i + 1}/${u.items.length}`),
+    insecureWarning('L’enregistrement de ta voix'),
     el('div', { class: 'progress' }, [
       el('div', { class: 'bar', style: { width: ((i + 1) / u.items.length) * 100 + '%' } }),
     ]),
@@ -1338,6 +1355,7 @@ VIEWS.studio = () => {
 
   return el('div', { class: 'screen' }, [
     header('🎙️ Studio voix'),
+    insecureWarning('L’enregistrement'),
     mascot('Fais enregistrer les mots par quelqu’un qui parle darija : c’est ce que les enfants entendront ensuite dans tous les jeux.'),
     el('button', {
       class: 'primary wide',
@@ -1524,6 +1542,14 @@ VIEWS.parents = () => {
         onclick: () => { store.updateProfile(p.id, { mode: m.id }); go('parents', {}, { replace: true }); },
       }, [el('b', {}, m.label), el('small', {}, m.hint)])
     )),
+
+    el('h2', { class: 'section' }, 'Installation'),
+    el('div', { class: 'stat-grid' }, [
+      ['Version', VERSION],
+      ['Hors ligne', 'serviceWorker' in navigator ? 'oui' : 'non'],
+      ['Micro', restricted() ? 'bloqué' : 'ok'],
+    ].map(([k, v]) => el('div', { class: 'stat' }, [el('b', {}, v), el('small', {}, k)]))),
+    insecureWarning('Le mode hors ligne et le micro'),
 
     el('h2', { class: 'section' }, 'Écoute automatique'),
     el('p', { class: 'hint' },

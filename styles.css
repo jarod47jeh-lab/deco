@@ -324,6 +324,15 @@ h1, h2 { margin: 0; }
 .heard-text { margin: 0; color: var(--muted); }
 .heard-text .ar { color: var(--ink); font-size: 1.4rem; }
 
+/* --- Avertissements --- */
+
+.warn {
+  background: color-mix(in srgb, var(--ko) 12%, var(--card));
+  border: 2px solid var(--ko); border-radius: 16px; padding: 12px 14px;
+}
+.warn b { display: block; margin-bottom: 4px; }
+.warn p { margin: 0; font-size: .9rem; }
+
 /* --- Séance du jour --- */
 
 .daily {

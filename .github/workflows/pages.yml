@@ -1,0 +1,70 @@
+name: Mise en ligne (GitHub Pages)
+
+# L'app a besoin d'être servie en HTTPS : sans ça, les navigateurs coupent le
+# micro (donc le Studio voix) et le mode hors ligne. GitHub Pages fournit
+# l'HTTPS gratuitement, et l'app fonctionne telle quelle sous un sous-dossier.
+
+on:
+  push:
+    branches:
+      - main
+      - claude/darija-learning-app-qxo7fy
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Une seule mise en ligne à la fois, sans annuler celle qui est en cours.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Estampiller la version
+        # Le cache du service worker porte ce numéro : chaque mise en ligne
+        # repart donc d'un cache neuf, sans incrément manuel.
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          sed -i "s/const VERSION = 'dev'/const VERSION = '$SHA'/" sw.js
+          sed -i "s/export const VERSION = 'dev'/export const VERSION = '$SHA'/" js/version.js
+          echo "Version déployée : $SHA"
+          grep -n "VERSION = " sw.js js/version.js
+
+      - name: Vérifier que rien ne manque
+        run: |
+          set -e
+          for f in index.html styles.css sw.js manifest.webmanifest \
+                   icons/icon-192.png icons/icon-512.png icons/icon.svg; do
+            test -f "$f" || { echo "Fichier manquant : $f"; exit 1; }
+          done
+          # Tous les fichiers listés par le service worker doivent exister.
+          node -e "
+            const fs = require('fs');
+            const sw = fs.readFileSync('sw.js', 'utf8');
+            const liste = sw.match(/const ASSETS = \[([\s\S]*?)\]/)[1];
+            const fichiers = [...liste.matchAll(/'\.\/([^']+)'/g)].map((m) => m[1]);
+            const absents = fichiers.filter((f) => f && !fs.existsSync(f));
+            if (absents.length) { console.error('Absents du dépôt :', absents); process.exit(1); }
+            console.log(fichiers.length + ' fichiers mis en cache, tous présents');
+          "
+          # Empêche Jekyll de filtrer quoi que ce soit.
+          touch .nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - id: deploiement
+        uses: actions/deploy-pages@v4
