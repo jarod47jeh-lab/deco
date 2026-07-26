@@ -234,18 +234,23 @@ export async function playItem(item, { slow = false } = {}) {
   stopAll();
   const url = await getClipUrl(item.id);
   if (url) {
-    const a = new Audio(url);
-    a.playbackRate = slow ? 0.7 : 1;
-    currentAudio = a;
-    try {
-      await a.play();
-    } catch {
-      /* lecture bloquée par le navigateur */
-    }
+    await playUrl(url, { rate: slow ? 0.7 : 1 });
     return;
   }
   const text = item.ar || item.dr;
   await speak(text, ['ar-ma', 'ar'], slow ? 0.6 : 0.85);
+}
+
+/** Joue un fichier et ne rend la main qu'à la fin, pour pouvoir enchaîner. */
+export function playUrl(url, { rate = 1 } = {}) {
+  stopAll();
+  return new Promise((resolve) => {
+    const a = new Audio(url);
+    a.playbackRate = rate;
+    currentAudio = a;
+    a.onended = a.onerror = () => resolve();
+    a.play().catch(() => resolve());
+  });
 }
 
 export function playFrench(text) {

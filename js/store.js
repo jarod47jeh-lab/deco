@@ -47,7 +47,11 @@ export const AVATARS = ['🦊', '🐪', '🐱', '🦁', '🐢', '🐝', '🦜', 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
 
-const blank = () => ({ profiles: [], activeId: null });
+// Réglages communs à tous les profils. L'écoute automatique est refusée par
+// défaut : elle envoie la voix à un service en ligne (voir js/speech.js).
+const DEFAULT_SETTINGS = { speech: false };
+
+const blank = () => ({ profiles: [], activeId: null, settings: { ...DEFAULT_SETTINGS } });
 
 let state = load();
 
@@ -72,6 +76,16 @@ function save() {
 
 export function profiles() {
   return state.profiles;
+}
+
+export function settings() {
+  state.settings = { ...DEFAULT_SETTINGS, ...(state.settings || {}) };
+  return state.settings;
+}
+
+export function setSetting(key, value) {
+  settings()[key] = value;
+  save();
 }
 
 const byId = (id) => state.profiles.find((p) => p.id === id) || null;

@@ -159,6 +159,7 @@ h1, h2 { margin: 0; }
 .grow { flex: 1; }
 .row-btns { display: flex; gap: 10px; flex-wrap: wrap; }
 .row-btns .primary { flex: 1; }
+.row-btns .full-row { flex: 1 0 100%; }
 .link-btn { color: var(--muted); text-decoration: underline; padding: 8px; font-size: .9rem; align-self: center; }
 
 .field { display: flex; flex-direction: column; gap: 6px; font-weight: 700; }
@@ -312,6 +313,16 @@ h1, h2 { margin: 0; }
 .result-line { font-size: 1.2rem; font-weight: 700; margin: 0; }
 .result-xp { color: var(--muted); margin: 0; }
 .badge-pop { background: var(--accent-soft); border-radius: 999px; padding: 10px 16px; font-weight: 700; }
+
+/* --- Prononciation --- */
+
+.status { text-align: center; font-weight: 700; margin: 0; color: var(--c); min-height: 1.4em; }
+.heard { display: flex; flex-direction: column; gap: 4px; text-align: center; }
+.verdict { font-weight: 800; font-size: 1.15rem; margin: 0; }
+.verdict.ok { color: var(--ok); }
+.verdict.ko { color: var(--ko); }
+.heard-text { margin: 0; color: var(--muted); }
+.heard-text .ar { color: var(--ink); font-size: 1.4rem; }
 
 /* --- Défi famille --- */
 

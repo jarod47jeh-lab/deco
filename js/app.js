@@ -4,7 +4,8 @@ import { UNITS, UNIT_BY_ID, ALL_ITEMS, SOUNDS, RECORDING_PRIORITY } from './data
 import * as store from './store.js';
 import * as audio from './audio.js';
 import { ROUNDS, chooseRound, memoryBoard } from './games.js';
-import { el, clear, shuffle, sample, pick } from './dom.js';
+import * as speech from './speech.js';
+import { el, clear, shuffle, sample, pick, wait } from './dom.js';
 
 const app = document.getElementById('app');
 const stack = [];
@@ -257,6 +258,10 @@ VIEWS.unit = ({ unitId }) => {
         class: 'primary',
         onclick: () => go('memory', { unitId }),
       }, '🃏 Paires'),
+      el('button', {
+        class: 'primary',
+        onclick: () => go('pronounce', { unitId, i: 0 }),
+      }, '🎤 Prononcer'),
     ]),
     el('h2', { class: 'section' }, 'Tous les mots'),
   ]);
@@ -445,6 +450,158 @@ VIEWS.memory = ({ unitId }) => {
     wrap.append(el('button', { class: 'primary wide', onclick: () => go('memory', { unitId }, { replace: true }) }, '🔁 Encore'));
   }));
   return wrap;
+};
+
+// --- Écran : s'entraîner à prononcer ----------------------------------------
+//
+// Le cœur de l'écran est la comparaison à l'oreille : on écoute le modèle,
+// on s'enregistre, on réécoute les deux à la suite. Ça marche hors ligne et
+// partout. L'écoute automatique (js/speech.js) n'est qu'un bonus facultatif.
+
+// Les essais restent en mémoire le temps de la session : ils ne doivent
+// surtout pas se retrouver mêlés aux voix de référence du studio.
+const attempts = new Map();
+
+VIEWS.pronounce = ({ unitId, i }) => {
+  const u = UNIT_BY_ID[unitId];
+  const it = u.items[i];
+  const cfg = store.mode();
+  let recorder = null;
+
+  const status = el('p', { class: 'status' }, 'Écoute le modèle, puis enregistre-toi');
+  const heard = el('div', { class: 'heard' });
+  const compareRow = el('div', { class: 'row-btns' });
+  const recBtn = el('button', { class: 'big-rec' }, '⚪');
+
+  const stopRecorder = () => {
+    if (recorder) {
+      recorder.cancel();
+      recorder = null;
+    }
+  };
+  const leave = (view, params) => {
+    stopRecorder();
+    go(view, params, { replace: true });
+  };
+
+  const drawCompare = () => {
+    clear(compareRow);
+    const mine = attempts.get(it.id);
+    if (!mine) return;
+    compareRow.append(
+      el('button', { class: 'secondary grow', onclick: () => audio.playItem(it) }, '🔊 Le modèle'),
+      el('button', { class: 'secondary grow', onclick: () => audio.playUrl(mine) }, '🙋 Ma voix'),
+      el('button', {
+        class: 'primary full-row',
+        onclick: async (e) => {
+          const btn = e.currentTarget;
+          btn.disabled = true;
+          status.textContent = '🔊 le modèle…';
+          await audio.playItem(it);
+          await wait(400);
+          status.textContent = '🙋 ta voix…';
+          await audio.playUrl(mine);
+          status.textContent = 'Alors, pareil ou pas ?';
+          btn.disabled = false;
+        },
+      }, '⚖️ Les deux à la suite')
+    );
+
+    // Bonus facultatif, seulement si le parent l'a activé et que l'appareil sait le faire.
+    if (store.settings().speech && speech.available() && it.ar) {
+      compareRow.append(el('button', {
+        class: 'secondary full-row',
+        onclick: async (e) => {
+          const btn = e.currentTarget;
+          btn.disabled = true;
+          clear(heard);
+          status.textContent = '👂 dis le mot maintenant…';
+          try {
+            const alts = await speech.listen({ lang: 'ar-MA' });
+            const { text, score } = speech.bestMatch(alts, it.ar);
+            const verdict =
+              score >= 0.75 ? { cls: 'ok', txt: '✅ Ça correspond !' }
+              : score >= 0.5 ? { cls: '', txt: '🤏 Pas loin' }
+              : { cls: 'ko', txt: '❓ L’appareil n’a pas reconnu' };
+            heard.append(
+              el('p', { class: 'verdict ' + verdict.cls }, verdict.txt),
+              el('p', { class: 'heard-text' }, ['il a entendu : ', el('span', { class: 'ar' }, text || '—')]),
+              el('p', { class: 'hint' }, 'Rappel : ce moteur ne connaît pas le darija, il se trompe souvent. Ton oreille décide.')
+            );
+            status.textContent = 'Compare quand tu veux';
+          } catch (err) {
+            heard.append(el('p', { class: 'hint' }, '⚠️ ' + err.message));
+            status.textContent = 'Compare quand tu veux';
+          }
+          btn.disabled = false;
+        },
+      }, '👂 Faire écouter l’appareil'));
+    }
+  };
+
+  recBtn.addEventListener('click', async () => {
+    if (recorder) {
+      const blob = await recorder.stop();
+      recorder = null;
+      recBtn.classList.remove('recording');
+      recBtn.textContent = '🔁';
+      const old = attempts.get(it.id);
+      if (old) URL.revokeObjectURL(old);
+      attempts.set(it.id, URL.createObjectURL(blob));
+      status.textContent = 'Écoute-toi !';
+      drawCompare();
+      await audio.playUrl(attempts.get(it.id));
+      return;
+    }
+    try {
+      recorder = await audio.beginRecording();
+      recBtn.classList.add('recording');
+      recBtn.textContent = '⏹️';
+      clear(heard);
+      status.textContent = 'Dis le mot… touche pour arrêter';
+    } catch {
+      recorder = null;
+      status.textContent = '⚠️ Micro indisponible';
+    }
+  });
+
+  if (attempts.has(it.id)) {
+    recBtn.textContent = '🔁';
+    drawCompare();
+  }
+
+  setTimeout(() => audio.playItem(it), 400);
+
+  return el('div', { class: 'screen', style: { '--c': u.color } }, [
+    header(`🎤 Prononcer · ${i + 1}/${u.items.length}`),
+    el('div', { class: 'progress' }, [
+      el('div', { class: 'bar', style: { width: ((i + 1) / u.items.length) * 100 + '%' } }),
+    ]),
+    el('div', { class: 'learn-card' }, [
+      el('span', { class: 'emoji hero-size' }, it.emoji),
+      el('p', { class: 'learn-fr' }, it.fr),
+      el('p', { class: 'learn-dr' }, it.dr),
+      cfg.showArabic && it.ar ? el('p', { class: 'learn-ar' }, it.ar) : null,
+      el('div', { class: 'row-btns' }, [
+        el('button', { class: 'secondary grow', onclick: () => audio.playItem(it) }, '🔊 Écouter'),
+        el('button', { class: 'secondary grow', onclick: () => audio.playItem(it, { slow: true }) }, '🐢 Lentement'),
+      ]),
+      audio.recordedIds.has(it.id)
+        ? null
+        : el('p', { class: 'hint' }, '⚠️ Modèle en voix de synthèse : l’accent n’est pas marocain. Enregistre ce mot dans le studio.'),
+    ]),
+    recBtn,
+    status,
+    heard,
+    compareRow,
+    el('div', { class: 'row-btns' }, [
+      i > 0 ? el('button', { class: 'secondary', onclick: () => leave('pronounce', { unitId, i: i - 1 }) }, '←') : null,
+      el('button', {
+        class: 'primary grow',
+        onclick: () => (i + 1 < u.items.length ? leave('pronounce', { unitId, i: i + 1 }) : leave('unit', { unitId })),
+      }, i + 1 < u.items.length ? 'Suivant →' : 'Terminer'),
+    ]),
+  ]);
 };
 
 // --- Écrans : défi famille --------------------------------------------------
@@ -981,6 +1138,27 @@ VIEWS.parents = () => {
         onclick: () => { store.updateProfile(p.id, { mode: m.id }); go('parents', {}, { replace: true }); },
       }, [el('b', {}, m.label), el('small', {}, m.hint)])
     )),
+
+    el('h2', { class: 'section' }, 'Écoute automatique'),
+    el('p', { class: 'hint' },
+      speech.available()
+        ? 'Dans l’écran « Prononcer », l’appareil peut essayer de reconnaître ce qui est dit. ' +
+          'Attention : le navigateur envoie alors la voix à un service en ligne (Google pour Chrome), ' +
+          'il faut une connexion, et le moteur ne connaît pas le darija — il refuse souvent une ' +
+          'prononciation correcte. La comparaison à l’oreille fonctionne sans rien de tout ça.'
+        : 'Cet appareil ne propose pas de reconnaissance vocale. La comparaison à l’oreille reste disponible.'),
+    speech.available()
+      ? el('button', {
+          class: 'answer col' + (store.settings().speech ? ' selected' : ''),
+          onclick: () => {
+            store.setSetting('speech', !store.settings().speech);
+            go('parents', {}, { replace: true });
+          },
+        }, [
+          el('b', {}, store.settings().speech ? '✅ Activée' : '⬜ Désactivée'),
+          el('small', {}, store.settings().speech ? 'La voix sort du téléphone quand on l’utilise' : 'Rien ne sort du téléphone'),
+        ])
+      : null,
 
     el('h2', { class: 'section' }, 'Données'),
     el('p', { class: 'hint' }, 'Tout est stocké sur cet appareil. Rien n’est envoyé sur Internet.'),

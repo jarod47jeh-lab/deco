@@ -147,6 +147,31 @@ remplacer par celles de l'archive, ou garder les siennes et n'ajouter que les
 nouvelles. Une archive abîmée ou un fichier qui n'est pas un ZIP sont refusés avec un
 message clair, sans rien toucher.
 
+### S'entraîner à prononcer, et l'écoute automatique
+
+Chaque thème a un bouton **🎤 Prononcer**. L'écran enchaîne les mots : on écoute le
+modèle (au besoin ralenti), on s'enregistre, puis on réécoute **« les deux à la
+suite »** — le modèle, une pause, sa propre voix. C'est la méthode des laboratoires de
+langue, elle marche hors ligne et sur tous les appareils, et c'est l'oreille qui juge.
+Les essais restent en mémoire le temps de la session : ils ne touchent jamais aux voix
+de référence du studio.
+
+Une **reconnaissance vocale** est disponible en plus, mais **désactivée par défaut**,
+et il faut l'activer dans l'espace parents. Trois raisons à cette prudence :
+
+- elle n'est pas locale — le navigateur envoie la voix à un service en ligne (Google
+  pour Chrome), donc la voix des enfants sort du téléphone ;
+- elle a besoin d'une connexion, contrairement au reste de l'app ;
+- **aucun moteur ne connaît le darija.** « ar-MA » reste un modèle d'arabe standard :
+  il refuse régulièrement une prononciation marocaine correcte.
+
+Quand elle est activée, l'app affiche ce que l'appareil a cru entendre en arabe, une
+appréciation calculée par similarité de graphies, et un rappel qu'elle se trompe
+souvent. Elle ne dit jamais « faux » — dire « faux » à un débutant qui a bien prononcé
+est le plus sûr moyen de le décourager. Si le moteur échoue (pas de réseau, navigateur
+sans reconnaissance), l'écran l'annonce et la comparaison à l'oreille continue de
+fonctionner.
+
 ---
 
 ## Les données
@@ -171,6 +196,7 @@ js/
   audio.js              voix enregistrées, synthèse, bruitages
   games.js              les six types de manches + le jeu de paires
   zip.js                lecture et écriture d'archives, pour le transfert des voix
+  speech.js             reconnaissance vocale facultative et comparaison de graphies
   dom.js                helpers
 icons/                  icônes de l'app
 tools/make_icons.py     régénère les PNG à partir du SVG
@@ -191,5 +217,4 @@ en mode tout-petit, `notes: [...]` ajoute les explications de grammaire vues par
 
 ## Pistes pour la suite
 
-- Reconnaissance vocale pour comparer sa prononciation à l'enregistrement
 - Des mini-histoires illustrées une fois les 100 premiers mots acquis
