@@ -1,6 +1,6 @@
 // Service worker : l'app fonctionne sans connexion une fois ouverte une première fois.
 
-const CACHE = 'darija-v3';
+const CACHE = 'darija-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -33,18 +33,27 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+// Cache d'abord pour rester instantané et fonctionner sans réseau, mais on
+// revalide en arrière-plan : sans ça, une modification de js/data.js ne serait
+// jamais servie à un téléphone où l'app est déjà installée. La nouvelle version
+// est donc en place à l'ouverture suivante.
 self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(
-    caches.match(e.request).then((hit) =>
-      hit ||
-      fetch(e.request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
-          return res;
-        })
-        .catch(() => caches.match('./index.html'))
-    )
-  );
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  if (new URL(req.url).origin !== self.location.origin) return;
+
+  e.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    const cached = await cache.match(req);
+
+    const fetching = fetch(req)
+      .then((res) => {
+        if (res && res.ok) cache.put(req, res.clone());
+        return res;
+      })
+      .catch(() => null);
+
+    e.waitUntil(fetching); // la mise à jour finit même si la réponse est déjà rendue
+    return cached || (await fetching) || (await cache.match('./index.html'));
+  })());
 });
