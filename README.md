@@ -85,6 +85,22 @@ badges, une mascotte chamelle qui encourage en darija, des bruitages, et un jeu
 de paires par thème. Les sessions sont courtes exprès : 4 manches pour la petite,
 6 pour le moyen, 8 pour l'adulte.
 
+### Le défi famille
+
+Dès qu'il y a deux profils, l'accueil propose un **défi** : plusieurs personnes
+s'affrontent sur le même téléphone, chacune son tour, cinq tours chacune.
+
+Le problème d'un duel entre 5 ans et 41 ans, c'est qu'il n'y a aucun suspense. La
+solution retenue : **chacun joue dans son propre mode**. Sur le même thème, la plus
+jeune reçoit des manches en images et en son, l'aînée doit reconnaître le mot écrit,
+l'adulte doit l'écrire. Les mots sont tirés du même sac mais chaque joueur a les
+siens, pour que personne ne voie passer la réponse du précédent. Si une joueuse en
+mode tout-petit participe, seuls les thèmes concrets sont proposés.
+
+Entre deux tours, un écran « À toi, Lina ! » laisse le temps de passer le téléphone.
+À la fin, un podium — les ex æquo partagent la médaille. Les points et les mots vus
+sont crédités à chaque profil : un défi compte comme une vraie séance de révision.
+
 ---
 
 ## 🎙️ Le point important : la prononciation
@@ -175,6 +191,5 @@ en mode tout-petit, `notes: [...]` ajoute les explications de grammaire vues par
 
 ## Pistes pour la suite
 
-- Un mode « défi famille » : deux profils s'affrontent sur le même téléphone
 - Reconnaissance vocale pour comparer sa prononciation à l'enregistrement
 - Des mini-histoires illustrées une fois les 100 premiers mots acquis

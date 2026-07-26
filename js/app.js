@@ -122,7 +122,8 @@ VIEWS.profiles = () => {
 VIEWS.newProfile = () => {
   const name = el('input', { class: 'text-input', type: 'text', placeholder: 'Prénom' });
   const age = el('input', { class: 'text-input', type: 'number', min: '3', max: '99', value: '8' });
-  let avatar = store.AVATARS[0];
+  // Chaque nouveau profil prend l'avatar suivant : indispensable pour se reconnaître en défi.
+  let avatar = store.AVATARS[store.profiles().length % store.AVATARS.length];
   let modeId = 'junior';
 
   const modeRow = el('div', { class: 'stack' });
@@ -198,6 +199,13 @@ VIEWS.home = () => {
       class: 'primary wide review',
       onclick: () => go('session', { itemIds: sample(due, Math.min(cfg.perSession + 2, due.length)).map((i) => i.id), title: 'Révision', unitId: null }),
     }, `🔁 Réviser (${due.length})`));
+  }
+
+  if (store.profiles().length >= 2) {
+    wrap.append(el('button', {
+      class: 'primary wide duel-btn',
+      onclick: () => go('duelSetup'),
+    }, '🏆 Défi famille'));
   }
 
   wrap.append(el('h2', { class: 'section' }, 'Les thèmes'));
@@ -438,6 +446,231 @@ VIEWS.memory = ({ unitId }) => {
   }));
   return wrap;
 };
+
+// --- Écrans : défi famille --------------------------------------------------
+//
+// Plusieurs profils s'affrontent sur le même téléphone, à tour de rôle.
+// L'équité vient du fait que chacun joue dans SON mode : la plus jeune reçoit
+// des manches en images et en son, l'adulte doit écrire le mot. Les mots sont
+// tirés du même thème, et chaque joueur a ses propres mots pour que personne
+// ne voie passer la réponse de l'autre.
+
+const TURNS_EACH = 5;
+let duel = null;
+
+function buildDuel(chosen, unitId) {
+  const hasLittle = chosen.some((p) => p.mode === 'petit');
+  const allowed = hasLittle ? UNITS.filter((u) => u.kid) : UNITS;
+  const source = unitId === 'mix' ? allowed : [UNIT_BY_ID[unitId]];
+  const pool = source.flatMap((u) => u.items.map((i) => ({ ...i, unit: u.id })));
+
+  let bag = shuffle(pool);
+  const need = chosen.length * TURNS_EACH;
+  while (bag.length < need) bag = bag.concat(shuffle(pool));
+
+  const turns = [];
+  for (let t = 0; t < TURNS_EACH; t++) {
+    chosen.forEach((_, playerIdx) => turns.push({ playerIdx, item: bag[turns.length] }));
+  }
+
+  return {
+    players: chosen.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar, mode: p.mode, score: 0, correct: 0, lastKind: null })),
+    turns,
+    turn: 0,
+    phase: 'handoff',
+    pool,
+    title: unitId === 'mix' ? 'Mélange' : UNIT_BY_ID[unitId].title,
+    color: unitId === 'mix' ? null : UNIT_BY_ID[unitId].color,
+  };
+}
+
+VIEWS.duelSetup = () => {
+  const all = store.profiles();
+  const chosen = new Set(all.slice(0, 2).map((p) => p.id));
+  let unitId = 'mix';
+
+  const playersEl = el('div', { class: 'profile-row' });
+  const themesEl = el('div', { class: 'unit-grid' });
+  const startBtn = el('button', { class: 'primary wide' }, '⚔️ Commencer le défi');
+
+  const refresh = () => {
+    startBtn.disabled = chosen.size < 2;
+    startBtn.textContent = chosen.size < 2 ? 'Choisis au moins 2 joueurs' : '⚔️ Commencer le défi';
+  };
+
+  const drawPlayers = () => {
+    clear(playersEl);
+    all.forEach((p) =>
+      playersEl.append(el('button', {
+        class: 'profile-card' + (chosen.has(p.id) ? ' selected' : ''),
+        onclick: () => {
+          chosen.has(p.id) ? chosen.delete(p.id) : chosen.add(p.id);
+          audio.sfx.tap();
+          drawPlayers();
+          drawThemes();
+          refresh();
+        },
+      }, [
+        el('span', { class: 'avatar' }, p.avatar),
+        el('b', {}, p.name),
+        el('small', {}, store.MODES[p.mode].label),
+      ]))
+    );
+  };
+
+  const drawThemes = () => {
+    clear(themesEl);
+    // Si une joueuse est en mode tout-petit, on s'en tient aux thèmes concrets.
+    const hasLittle = all.some((p) => chosen.has(p.id) && p.mode === 'petit');
+    const list = hasLittle ? UNITS.filter((u) => u.kid) : UNITS;
+    const options = [{ id: 'mix', emoji: '🎲', title: 'Mélange', color: '#f59e0b' }, ...list];
+    if (!options.some((o) => o.id === unitId)) unitId = 'mix';
+    options.forEach((u) =>
+      themesEl.append(el('button', {
+        class: 'unit-card' + (u.id === unitId ? ' selected' : ''),
+        style: { '--c': u.color },
+        onclick: () => { unitId = u.id; drawThemes(); },
+      }, [
+        el('span', { class: 'unit-emoji' }, u.emoji),
+        el('span', { class: 'unit-title' }, u.title),
+      ]))
+    );
+  };
+
+  startBtn.addEventListener('click', () => {
+    const players = all.filter((p) => chosen.has(p.id));
+    duel = buildDuel(players, unitId);
+    go('duel', {}, { replace: true });
+  });
+
+  drawPlayers();
+  drawThemes();
+  refresh();
+
+  return el('div', { class: 'screen' }, [
+    header('🏆 Défi famille'),
+    mascot(`Chacun joue à son niveau, ${TURNS_EACH} tours chacun. On se passe le téléphone entre les tours.`),
+    el('h2', { class: 'section' }, 'Qui joue ?'),
+    playersEl,
+    el('h2', { class: 'section' }, 'Sur quel thème ?'),
+    themesEl,
+    startBtn,
+  ]);
+};
+
+VIEWS.duel = () => {
+  if (!duel) return VIEWS.home();
+  if (duel.turn >= duel.turns.length) return duelResult();
+
+  const { playerIdx, item } = duel.turns[duel.turn];
+  const player = duel.players[playerIdx];
+  const cfg = store.MODES[player.mode];
+  const round = Math.floor(duel.turn / duel.players.length) + 1;
+
+  const scores = el('div', { class: 'duel-scores' },
+    duel.players.map((p, i) =>
+      el('div', { class: 'duel-player' + (i === playerIdx ? ' active' : '') }, [
+        el('span', { class: 'duel-avatar' }, p.avatar),
+        el('b', {}, String(p.score)),
+      ])
+    )
+  );
+
+  if (duel.phase === 'handoff') {
+    return el('div', { class: 'screen center' }, [
+      scores,
+      el('div', { class: 'handoff' }, [
+        el('span', { class: 'handoff-avatar' }, player.avatar),
+        el('h1', { class: 'big-title' }, `À toi, ${player.name} !`),
+        el('p', { class: 'result-xp' }, `Tour ${round} sur ${TURNS_EACH} · ${duel.title}`),
+      ]),
+      el('button', {
+        class: 'primary wide',
+        onclick: () => { duel.phase = 'play'; go('duel', {}, { replace: true }); },
+      }, 'Je suis prêt !'),
+      el('button', { class: 'link-btn', onclick: () => { duel = null; reset('home'); } }, 'Arrêter le défi'),
+    ]);
+  }
+
+  const kind = chooseRound(item, cfg, player.lastKind);
+  player.lastKind = kind;
+
+  const slot = el('div', { class: 'round-slot' });
+  const wrap = el('div', { class: 'screen play', style: duel.color ? { '--c': duel.color } : {} }, [
+    el('header', { class: 'topbar' }, [
+      el('button', { class: 'icon-btn', onclick: () => { duel = null; reset('home'); }, 'aria-label': 'Quitter' }, '✕'),
+      el('span', { class: 'duel-turn' }, `${player.avatar} ${player.name}`),
+      el('span', { class: 'score' }, String(player.score)),
+    ]),
+    scores,
+    slot,
+  ]);
+
+  slot.append(ROUNDS[kind](item, duel.pool, cfg, (ok) => {
+    store.recordAnswerFor(player.id, item.id, ok);
+    if (ok) {
+      player.score += 10;
+      player.correct += 1;
+    }
+    duel.turn += 1;
+    duel.phase = 'handoff';
+    go('duel', {}, { replace: true });
+  }));
+
+  return wrap;
+};
+
+function duelResult() {
+  const ranked = [...duel.players].sort((a, b) => b.score - a.score);
+  const top = ranked[0].score;
+  const winners = ranked.filter((p) => p.score === top);
+  const tie = winners.length > 1;
+
+  // On ne crédite qu'une fois, même si l'écran est réaffiché.
+  if (!duel.finalized) {
+    duel.finalized = true;
+    duel.players.forEach((p) => {
+      store.addXpFor(p.id, p.score);
+      store.touchStreakFor(p.id);
+      store.recordDuel(p.id, p.score === top);
+      store.refreshBadgesFor(p.id);
+    });
+    audio.sfx.win();
+  }
+
+  const medals = ['🥇', '🥈', '🥉'];
+  // Classement sportif : deux joueurs à égalité partagent la même médaille.
+  const medalFor = (p) => medals[ranked.findIndex((x) => x.score === p.score)] || '🎖️';
+
+  return el('div', { class: 'screen center' }, [
+    el('h1', { class: 'big-title' }, tie ? 'Égalité !' : `Bravo ${winners[0].name} !`),
+    el('div', { class: 'podium' },
+      ranked.map((p) =>
+        el('div', { class: 'podium-row' + (p.score === top ? ' win' : '') }, [
+          el('span', { class: 'medal' }, medalFor(p)),
+          el('span', { class: 'duel-avatar' }, p.avatar),
+          el('span', { class: 'word-text' }, [
+            el('b', {}, p.name),
+            el('small', {}, `${p.correct} / ${TURNS_EACH} réussis`),
+          ]),
+          el('b', { class: 'podium-score' }, `${p.score} pts`),
+        ])
+      )
+    ),
+    mascot(tie ? 'Personne ne gagne, tout le monde gagne !' : pick(['Mzyan bzzaf !', 'Quelle équipe !', 'Yallah, on remet ça ?'])),
+    el('p', { class: 'hint' }, 'Les points et les mots vus sont ajoutés à chaque profil.'),
+    el('div', { class: 'row-btns' }, [
+      el('button', {
+        class: 'primary grow',
+        onclick: () => { duel = null; go('duelSetup', {}, { replace: true }); },
+      }, '🔁 Rejouer'),
+      el('button', {
+        class: 'secondary grow',
+        onclick: () => { duel = null; reset('home'); },
+      }, '🏠 Accueil'),
+    ]),
+  ]);
+}
 
 // --- Écran : guide de prononciation ----------------------------------------
 
