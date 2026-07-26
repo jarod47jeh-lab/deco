@@ -27,8 +27,11 @@ Il y a donc deux usages, et un seul convient à un téléphone.
 
 Le dépôt se publie tout seul sur GitHub Pages, en HTTPS, gratuitement.
 
-**À faire une fois, dans les réglages du dépôt** (c'est la seule étape que je ne peux
-pas faire pour vous) :
+**À faire une fois, dans les réglages du dépôt.** C'est la seule étape qui vous
+revient : le jeton dont dispose le workflow a le droit de publier, mais pas de créer
+le site — j'ai essayé, GitHub refuse (« Resource not accessible by integration »).
+Tant que ce n'est pas fait, la mise en ligne s'arrête avec un message qui rappelle
+quoi cliquer.
 
 1. GitHub → le dépôt → **Settings** → **Pages**
 2. **Source** : choisir **GitHub Actions**
