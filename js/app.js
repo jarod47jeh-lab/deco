@@ -60,6 +60,18 @@ function profileChip() {
   ]);
 }
 
+/** Déclenche un téléchargement : l'ancrage doit être dans le document. */
+function download(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = el('a', { href: url, download: filename, style: { display: 'none' } });
+  document.body.append(a);
+  a.click();
+  setTimeout(() => {
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, 10000);
+}
+
 function mascot(text) {
   return el('div', { class: 'mascot' }, [
     el('span', { class: 'mascot-face' }, '🐪'),
@@ -561,6 +573,59 @@ VIEWS.studio = () => {
     el('p', { class: 'hint' }, 'Ce que les enfants entendent le plus souvent. Commence par le 1.'),
     priorityEl,
 
+    el('h2', { class: 'section' }, 'Partager les voix'),
+    el('p', { class: 'hint' }, 'Enregistre une seule fois, puis copie l’archive sur les autres téléphones de la famille.'),
+    el('div', { class: 'row-btns' }, [
+      el('button', {
+        class: 'secondary grow',
+        disabled: totalDone === 0,
+        onclick: async () => {
+          try {
+            const { blob, count } = await audio.exportClips();
+            if (!count) return alert('Aucune voix à exporter pour l’instant.');
+            download(blob, `darija-voix-${new Date().toISOString().slice(0, 10)}.zip`);
+          } catch (e) {
+            alert('Export impossible : ' + e.message);
+          }
+        },
+      }, `⬇️ Exporter (${totalDone})`),
+      el('button', {
+        class: 'secondary grow',
+        onclick: () => {
+          const inp = el('input', { type: 'file', accept: '.zip,application/zip' });
+          inp.addEventListener('change', async () => {
+            const file = inp.files[0];
+            if (!file) return;
+            try {
+              const { total, collisions } = await audio.previewImport(file);
+              if (!total) return alert('Cette archive ne contient aucune voix.');
+              let replace = true;
+              if (collisions) {
+                replace = confirm(
+                  `${total} voix dans l’archive, dont ${collisions} déjà enregistrées ici.\n\n` +
+                  'OK : remplacer les miennes par celles de l’archive.\n' +
+                  'Annuler : garder les miennes et n’ajouter que les nouvelles.'
+                );
+              }
+              const r = await audio.importClips(file, {
+                replace,
+                knownIds: new Set(ALL_ITEMS.map((i) => i.id)),
+              });
+              alert(
+                `${r.added} voix ajoutée${r.added > 1 ? 's' : ''}, ${r.replaced} remplacée${r.replaced > 1 ? 's' : ''}` +
+                (r.skipped ? `, ${r.skipped} ignorée${r.skipped > 1 ? 's' : ''}` : '') +
+                (r.unknown ? `, ${r.unknown} sans mot correspondant` : '') + '.'
+              );
+              go('studio', {}, { replace: true });
+            } catch (e) {
+              alert('Import impossible : ' + e.message);
+            }
+          });
+          inp.click();
+        },
+      }, '⬆️ Importer'),
+    ]),
+
     el('h2', { class: 'section' }, 'Mot par mot'),
     select,
     el('p', { class: 'hint' }, 'Touche ⚪ pour enregistrer, ⏹️ pour arrêter. Les voix restent sur cet appareil.'),
@@ -691,8 +756,7 @@ VIEWS.parents = () => {
         class: 'secondary grow',
         onclick: () => {
           const blob = new Blob([store.exportData()], { type: 'application/json' });
-          const a = el('a', { href: URL.createObjectURL(blob), download: 'darija-progression.json' });
-          a.click();
+          download(blob, 'darija-progression.json');
         },
       }, '⬇️ Exporter'),
       el('button', {

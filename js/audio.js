@@ -1,5 +1,7 @@
 // Audio : voix enregistrées (prioritaires) + synthèse vocale de secours + bruitages.
 
+import { zipStore, unzip } from './zip.js';
+
 const DB_NAME = 'darija-audio';
 const STORE = 'clips';
 let dbPromise = null;
@@ -62,6 +64,86 @@ export async function loadRecordedIndex() {
 }
 
 export const countRecorded = (items) => items.filter((it) => recordedIds.has(it.id)).length;
+
+// --- Transfert des voix d'un appareil à l'autre ----------------------------
+
+const EXT_BY_TYPE = {
+  'audio/webm': 'webm',
+  'audio/ogg': 'ogg',
+  'audio/mp4': 'm4a',
+  'audio/aac': 'aac',
+  'audio/mpeg': 'mp3',
+  'audio/wav': 'wav',
+};
+const TYPE_BY_EXT = Object.fromEntries(Object.entries(EXT_BY_TYPE).map(([t, e]) => [e, t]));
+const baseType = (t) => (t || '').split(';')[0].trim().toLowerCase();
+
+/** Rassemble toutes les voix dans une archive, avec un manifeste id → fichier. */
+export async function exportClips() {
+  const keys = await tx('readonly', (s) => s.getAllKeys());
+  const manifest = { version: 1, createdAt: new Date().toISOString(), clips: {} };
+  const files = [];
+
+  for (const id of keys) {
+    const blob = await tx('readonly', (s) => s.get(id));
+    if (!blob) continue;
+    const type = blob.type || 'audio/webm';
+    const name = `voix/${id}.${EXT_BY_TYPE[baseType(type)] || 'bin'}`;
+    files.push({ name, bytes: new Uint8Array(await blob.arrayBuffer()) });
+    manifest.clips[id] = { file: name, type };
+  }
+
+  const count = files.length;
+  files.unshift({
+    name: 'manifest.json',
+    bytes: new TextEncoder().encode(JSON.stringify(manifest, null, 2)),
+  });
+  return { blob: zipStore(files), count };
+}
+
+/**
+ * Réinjecte une archive produite par exportClips.
+ * @param {File} file
+ * @param {{replace?: boolean, knownIds?: Set<string>}} opts
+ */
+export async function importClips(file, { replace = true, knownIds = null } = {}) {
+  const entries = unzip(new Uint8Array(await file.arrayBuffer()));
+  const byName = new Map(entries.map((e) => [e.name, e.bytes]));
+
+  let clips = {};
+  const manifest = byName.get('manifest.json');
+  if (manifest) {
+    clips = JSON.parse(new TextDecoder().decode(manifest)).clips || {};
+  } else {
+    // Archive sans manifeste : on déduit l'identifiant du nom de fichier.
+    for (const e of entries) {
+      const m = /(?:^|\/)([^/]+)\.([a-z0-9]+)$/i.exec(e.name);
+      if (m) clips[m[1]] = { file: e.name, type: TYPE_BY_EXT[m[2].toLowerCase()] || 'audio/webm' };
+    }
+  }
+
+  const report = { added: 0, replaced: 0, skipped: 0, unknown: 0 };
+  for (const [id, info] of Object.entries(clips)) {
+    const bytes = byName.get(info.file);
+    if (!bytes) { report.skipped++; continue; }
+    if (knownIds && !knownIds.has(id)) { report.unknown++; continue; }
+    const exists = recordedIds.has(id);
+    if (exists && !replace) { report.skipped++; continue; }
+    await saveClip(id, new Blob([bytes], { type: info.type || 'audio/webm' }));
+    if (exists) report.replaced++; else report.added++;
+  }
+  return report;
+}
+
+/** Combien de voix de l'archive écraseraient une voix déjà présente. */
+export async function previewImport(file) {
+  const entries = unzip(new Uint8Array(await file.arrayBuffer()));
+  const manifest = entries.find((e) => e.name === 'manifest.json');
+  const ids = manifest
+    ? Object.keys(JSON.parse(new TextDecoder().decode(manifest.bytes)).clips || {})
+    : entries.map((e) => /(?:^|\/)([^/]+)\.[a-z0-9]+$/i.exec(e.name)?.[1]).filter(Boolean);
+  return { total: ids.length, collisions: ids.filter((id) => recordedIds.has(id)).length };
+}
 
 /**
  * Ouvre le micro et commence à enregistrer.

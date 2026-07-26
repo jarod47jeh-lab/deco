@@ -115,6 +115,22 @@ Les 25 phrases du thème 1 prennent une dizaine de minutes et changent tout : ce
 celles que les enfants entendront le plus. Passez le téléphone à la personne, elle n'a
 besoin d'aucune explication — la consigne est à l'écran.
 
+### N'enregistrer qu'une fois pour toute la famille
+
+Le studio exporte les voix dans une archive `darija-voix-AAAA-MM-JJ.zip` (bouton
+**Exporter**). Envoyez-la aux autres téléphones par le moyen habituel — message, mail,
+clé USB — et importez-la depuis leur studio : les voix redeviennent immédiatement
+actives dans tous les jeux.
+
+L'archive contient les fichiers audio tels quels, dans un dossier `voix/`, plus un
+`manifest.json` qui relie chaque fichier à son mot. C'est un ZIP standard : on peut
+l'ouvrir sur un ordinateur et écouter les enregistrements directement.
+
+Si des voix existent déjà sur le téléphone qui importe, l'app demande quoi faire :
+remplacer par celles de l'archive, ou garder les siennes et n'ajouter que les
+nouvelles. Une archive abîmée ou un fichier qui n'est pas un ZIP sont refusés avec un
+message clair, sans rien toucher.
+
 ---
 
 ## Les données
@@ -138,6 +154,7 @@ js/
   store.js              profils, progression, boîte de Leitner
   audio.js              voix enregistrées, synthèse, bruitages
   games.js              les six types de manches + le jeu de paires
+  zip.js                lecture et écriture d'archives, pour le transfert des voix
   dom.js                helpers
 icons/                  icônes de l'app
 tools/make_icons.py     régénère les PNG à partir du SVG
@@ -158,8 +175,6 @@ en mode tout-petit, `notes: [...]` ajoute les explications de grammaire vues par
 
 ## Pistes pour la suite
 
-- Exporter et importer les voix enregistrées, pour n'avoir à les enregistrer qu'une fois
-  puis les copier sur les autres téléphones de la famille
 - Un mode « défi famille » : deux profils s'affrontent sur le même téléphone
 - Reconnaissance vocale pour comparer sa prononciation à l'enregistrement
 - Des mini-histoires illustrées une fois les 100 premiers mots acquis
