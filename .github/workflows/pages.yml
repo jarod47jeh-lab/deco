@@ -60,7 +60,11 @@ jobs:
           # Empêche Jekyll de filtrer quoi que ce soit.
           touch .nojekyll
 
+      # enablement active GitHub Pages tout seul la première fois, au lieu
+      # d'échouer en demandant de le faire à la main dans les réglages.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
