@@ -61,6 +61,39 @@ export async function loadRecordedIndex() {
   return recordedIds;
 }
 
+export const countRecorded = (items) => items.filter((it) => recordedIds.has(it.id)).length;
+
+/**
+ * Ouvre le micro et commence à enregistrer.
+ * Renvoie un contrôleur : stop() rend le Blob, cancel() jette tout.
+ */
+export async function beginRecording() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const chunks = [];
+  const rec = new MediaRecorder(stream);
+  rec.ondataavailable = (e) => chunks.push(e.data);
+  rec.start();
+  const release = () => stream.getTracks().forEach((t) => t.stop());
+  return {
+    stop: () =>
+      new Promise((resolve) => {
+        rec.onstop = () => {
+          release();
+          resolve(new Blob(chunks, { type: rec.mimeType || 'audio/webm' }));
+        };
+        rec.stop();
+      }),
+    cancel: () => {
+      try {
+        if (rec.state !== 'inactive') rec.stop();
+      } catch {
+        /* déjà arrêté */
+      }
+      release();
+    },
+  };
+}
+
 // --- Synthèse vocale -------------------------------------------------------
 
 let voices = [];

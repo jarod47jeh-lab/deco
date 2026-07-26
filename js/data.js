@@ -597,6 +597,10 @@ export const ALL_ITEMS = UNITS.flatMap((u) => u.items.map((it) => ({ ...it, unit
 export const ITEM_BY_ID = Object.fromEntries(ALL_ITEMS.map((it) => [it.id, it]));
 export const UNIT_BY_ID = Object.fromEntries(UNITS.map((u) => [u.id, u]));
 
+// Ordre d'enregistrement conseillé dans le Studio voix : ce qu'un enfant a
+// besoin d'entendre en vraie voix d'abord. Le reste suit dans l'ordre des unités.
+export const RECORDING_PRIORITY = ['enfants', 'magiques', 'salam', 'famille', 'manger', 'fete'];
+
 // Guide de prononciation affiché dans l'app.
 export const SOUNDS = [
   { s: '3', ar: 'ع', fr: 'Un « a » qui vient du fond de la gorge, comme si on serrait la gorge.', ex: '3afak', arEx: 'عافاك' },

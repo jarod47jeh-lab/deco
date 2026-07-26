@@ -336,6 +336,28 @@ h1, h2 { margin: 0; }
 .rec-btn.recording { background: var(--ko); animation: pulse 1s infinite; }
 .rec-btn.has { color: var(--ok); }
 
+.prio-row {
+  display: flex; align-items: center; gap: 12px; text-align: left; width: 100%;
+  background: var(--card); border-radius: 16px; padding: 12px 14px;
+  box-shadow: var(--shadow); min-height: var(--tap);
+  border-left: 5px solid var(--c);
+}
+.prio-row.complete { opacity: .6; }
+.prio-rank {
+  width: 34px; height: 34px; flex: 0 0 34px; display: grid; place-items: center;
+  border-radius: 50%; background: var(--c); color: #fff; font-weight: 800;
+}
+.prio-row.complete .prio-rank { background: transparent; color: var(--ok); font-size: 1.3rem; }
+.prio-bar { width: 64px; flex: 0 0 64px; display: block; }
+.prio-bar .bar { display: block; }
+
+.big-rec {
+  width: 116px; height: 116px; border-radius: 50%; align-self: center;
+  background: var(--card); border: 5px solid var(--ko); font-size: 2.6rem;
+  box-shadow: var(--shadow);
+}
+.big-rec.recording { background: var(--ko); animation: pulse 1s infinite; }
+
 /* --- Parents --- */
 
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }

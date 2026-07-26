@@ -1,6 +1,6 @@
 // Chef d'orchestre : navigation entre les écrans.
 
-import { UNITS, UNIT_BY_ID, ALL_ITEMS, SOUNDS } from './data.js';
+import { UNITS, UNIT_BY_ID, ALL_ITEMS, SOUNDS, RECORDING_PRIORITY } from './data.js';
 import * as store from './store.js';
 import * as audio from './audio.js';
 import { ROUNDS, chooseRound, memoryBoard } from './games.js';
@@ -461,64 +461,188 @@ VIEWS.guide = () => {
 
 // --- Écran : studio d'enregistrement ---------------------------------------
 
-VIEWS.studio = () => {
-  let unitId = UNITS[0].id;
-  let recorder = null;
-  let chunks = [];
+// Les unités à enregistrer d'abord, puis les autres dans l'ordre normal.
+const STUDIO_ORDER = [
+  ...RECORDING_PRIORITY.map((id) => UNIT_BY_ID[id]).filter(Boolean),
+  ...UNITS.filter((u) => !RECORDING_PRIORITY.includes(u.id)),
+];
 
+// Retenu entre deux passages dans le studio, pour ne pas repartir de zéro.
+let studioUnitId = STUDIO_ORDER[0].id;
+
+const micError = () => alert('Micro indisponible. Vérifie l’autorisation du navigateur.');
+
+VIEWS.studio = () => {
+  let recorder = null;
   const listEl = el('div', { class: 'word-list' });
+  const priorityEl = el('div', { class: 'word-list' });
+
+  const drawPriority = () => {
+    clear(priorityEl);
+    RECORDING_PRIORITY.map((id) => UNIT_BY_ID[id]).filter(Boolean).forEach((u, rank) => {
+      const done = audio.countRecorded(u.items);
+      const total = u.items.length;
+      priorityEl.append(el('button', {
+        class: 'prio-row' + (done === total ? ' complete' : ''),
+        style: { '--c': u.color },
+        onclick: () => go('studioGuided', { unitId: u.id, i: 0 }),
+      }, [
+        el('span', { class: 'prio-rank' }, done === total ? '✅' : String(rank + 1)),
+        el('span', { class: 'word-text' }, [
+          el('b', {}, `${u.emoji} ${u.title}`),
+          el('small', {}, `${done} / ${total} enregistrés`),
+        ]),
+        el('span', { class: 'progress prio-bar' }, [
+          el('span', { class: 'bar', style: { width: (done / total) * 100 + '%' } }),
+        ]),
+      ]));
+    });
+  };
 
   const drawList = () => {
     clear(listEl);
-    const u = UNIT_BY_ID[unitId];
+    const u = UNIT_BY_ID[studioUnitId];
     u.items.forEach((it) => {
       const has = audio.recordedIds.has(it.id);
       const recBtn = el('button', { class: 'rec-btn' + (has ? ' has' : '') }, has ? '🎙️' : '⚪');
       recBtn.addEventListener('click', async () => {
-        if (recorder && recorder.state === 'recording') {
-          recorder.stop();
+        if (recorder) {
+          const blob = await recorder.stop();
+          recorder = null;
+          await audio.saveClip(it.id, blob);
+          drawList();
+          drawPriority();
           return;
         }
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          chunks = [];
-          recorder = new MediaRecorder(stream);
-          recorder.ondataavailable = (e) => chunks.push(e.data);
-          recorder.onstop = async () => {
-            stream.getTracks().forEach((t) => t.stop());
-            await audio.saveClip(it.id, new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }));
-            recorder = null;
-            drawList();
-          };
-          recorder.start();
+          recorder = await audio.beginRecording();
           recBtn.classList.add('recording');
           recBtn.textContent = '⏹️';
         } catch {
-          alert('Micro indisponible. Vérifie l’autorisation du navigateur.');
+          recorder = null;
+          micError();
         }
       });
 
       listEl.append(el('div', { class: 'word-row studio-row' }, [
         el('span', { class: 'emoji' }, it.emoji),
         el('span', { class: 'word-text' }, [el('b', {}, it.dr), el('small', {}, it.fr)]),
-        el('button', { class: 'speaker', onclick: () => audio.playItem({ ...it, unit: unitId }) }, '🔊'),
+        el('button', { class: 'speaker', onclick: () => audio.playItem({ ...it, unit: u.id }) }, '🔊'),
         recBtn,
-        has ? el('button', { class: 'speaker', onclick: async () => { await audio.deleteClip(it.id); drawList(); } }, '🗑️') : null,
+        has ? el('button', { class: 'speaker', onclick: async () => { await audio.deleteClip(it.id); drawList(); drawPriority(); } }, '🗑️') : null,
       ]));
     });
   };
 
-  const select = el('select', { class: 'text-input', onchange: (e) => { unitId = e.target.value; drawList(); } },
-    UNITS.map((u) => el('option', { value: u.id }, `${u.emoji} ${u.title}`)));
+  const select = el('select', {
+    class: 'text-input',
+    onchange: (e) => { studioUnitId = e.target.value; drawList(); },
+  }, STUDIO_ORDER.map((u) =>
+    el('option', { value: u.id, selected: u.id === studioUnitId },
+      `${u.emoji} ${u.title} — ${audio.countRecorded(u.items)}/${u.items.length}`)
+  ));
 
+  drawPriority();
   drawList();
+
+  const totalDone = audio.countRecorded(ALL_ITEMS);
+  const firstTodo = STUDIO_ORDER.find((u) => audio.countRecorded(u.items) < u.items.length) || STUDIO_ORDER[0];
 
   return el('div', { class: 'screen' }, [
     header('🎙️ Studio voix'),
     mascot('Fais enregistrer les mots par quelqu’un qui parle darija : c’est ce que les enfants entendront ensuite dans tous les jeux.'),
+    el('button', {
+      class: 'primary wide',
+      onclick: () => go('studioGuided', { unitId: firstTodo.id, i: 0 }),
+    }, `🎤 Enregistrer à la chaîne — ${firstTodo.title}`),
+    el('p', { class: 'hint' }, `${totalDone} / ${ALL_ITEMS.length} enregistrés sur cet appareil`),
+
+    el('h2', { class: 'section' }, 'À enregistrer en priorité'),
+    el('p', { class: 'hint' }, 'Ce que les enfants entendent le plus souvent. Commence par le 1.'),
+    priorityEl,
+
+    el('h2', { class: 'section' }, 'Mot par mot'),
     select,
     el('p', { class: 'hint' }, 'Touche ⚪ pour enregistrer, ⏹️ pour arrêter. Les voix restent sur cet appareil.'),
     listEl,
+  ]);
+};
+
+// --- Écran : enregistrement à la chaîne -------------------------------------
+
+VIEWS.studioGuided = ({ unitId, i }) => {
+  const u = UNIT_BY_ID[unitId];
+  const it = u.items[i];
+  studioUnitId = unitId;
+
+  if (!it) {
+    const done = audio.countRecorded(u.items);
+    return el('div', { class: 'screen center' }, [
+      el('h1', { class: 'big-title' }, 'Terminé !'),
+      el('p', { class: 'result-line' }, `${done} / ${u.items.length} enregistrés dans « ${u.title} »`),
+      mascot('Ces voix remplacent désormais la synthèse dans tous les jeux.'),
+      el('div', { class: 'row-btns' }, [
+        el('button', { class: 'secondary grow', onclick: () => back() }, '🎙️ Retour au studio'),
+        el('button', { class: 'primary grow', onclick: () => reset('home') }, '🏠 Accueil'),
+      ]),
+    ]);
+  }
+
+  const next = () => go('studioGuided', { unitId, i: i + 1 }, { replace: true });
+
+  const has = audio.recordedIds.has(it.id);
+  const status = el('p', { class: 'hint' }, has ? '🎙️ déjà enregistré — tu peux refaire' : 'Prêt à enregistrer');
+  const recBtn = el('button', { class: 'big-rec' }, '⚪');
+  let recorder = null;
+
+  recBtn.addEventListener('click', async () => {
+    if (recorder) {
+      const blob = await recorder.stop();
+      recorder = null;
+      recBtn.classList.remove('recording');
+      recBtn.textContent = '⏳';
+      await audio.saveClip(it.id, blob);
+      audio.sfx.good();
+      recBtn.textContent = '✅';
+      status.textContent = 'Enregistré !';
+      await audio.playItem(it);
+      setTimeout(next, 600);
+      return;
+    }
+    try {
+      recorder = await audio.beginRecording();
+      recBtn.classList.add('recording');
+      recBtn.textContent = '⏹️';
+      status.textContent = 'Ça enregistre… touche pour arrêter';
+    } catch {
+      recorder = null;
+      micError();
+    }
+  });
+
+  return el('div', { class: 'screen', style: { '--c': u.color } }, [
+    header(`🎤 ${u.title} · ${i + 1}/${u.items.length}`),
+    el('div', { class: 'progress' }, [
+      el('div', { class: 'bar', style: { width: (i / u.items.length) * 100 + '%' } }),
+    ]),
+    el('p', { class: 'instruction' }, 'Touche le rond, dis la phrase, touche encore pour arrêter'),
+    el('div', { class: 'learn-card' }, [
+      el('span', { class: 'emoji hero-size' }, it.emoji),
+      el('p', { class: 'learn-fr' }, it.fr),
+      el('p', { class: 'learn-dr' }, it.dr),
+      it.ar ? el('p', { class: 'learn-ar' }, it.ar) : null,
+      it.tip ? el('p', { class: 'tip' }, '💡 ' + it.tip) : null,
+    ]),
+    recBtn,
+    status,
+    el('div', { class: 'row-btns' }, [
+      i > 0 ? el('button', {
+        class: 'secondary',
+        onclick: () => go('studioGuided', { unitId, i: i - 1 }, { replace: true }),
+      }, '←') : null,
+      has ? el('button', { class: 'secondary', onclick: () => audio.playItem(it) }, '🔊') : null,
+      el('button', { class: 'secondary grow', onclick: next }, 'Passer →'),
+    ]),
   ]);
 };
 

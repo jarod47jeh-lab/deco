@@ -94,13 +94,26 @@ de paires par thème. Les sessions sont courtes exprès : 4 manches pour la peti
 avec un accent qui n'est pas celui du Maroc. C'est un dépannage, pas un modèle.
 
 D'où le **Studio voix** (bouton 🎙️ sur l'accueil) : quelqu'un qui parle darija enregistre
-les mots une fois, directement dans l'app, thème par thème. Les enregistrements sont
-stockés sur l'appareil (IndexedDB) et **remplacent automatiquement la synthèse partout** :
-dans les leçons, dans les jeux, dans le jeu de paires.
+les mots une fois, directement dans l'app. Les enregistrements sont stockés sur l'appareil
+(IndexedDB) et **remplacent automatiquement la synthèse partout** : dans les leçons, dans
+les jeux, dans le jeu de paires.
 
-C'est la première chose à faire si vous connaissez un locuteur natif. Une trentaine de
-mots suffisent pour transformer l'expérience — commencez par les salutations et les
-mots magiques.
+### Comment mener une séance d'enregistrement
+
+Le studio s'ouvre sur l'ordre conseillé, phrases d'enfants en tête :
+
+1. 🧸 Ce que je dis (25) — 2. ✨ Les mots magiques (17) — 3. 👋 Salutations (14) —
+4. 👨‍👩‍👧 La famille (15) — 5. 🍞 Manger & boire (27) — 6. 🎉 C'est la fête ! (11)
+
+Le bouton **« Enregistrer à la chaîne »** enchaîne les entrées d'un thème sans quitter
+l'écran : la phrase s'affiche en français, en lettres latines et en arabe, on touche le
+rond rouge, on la dit, on touche pour arrêter — l'app sauvegarde, rejoue, et passe à la
+suivante toute seule. Chaque thème affiche sa progression (`3 / 25 enregistrés`), donc une
+séance peut se faire en plusieurs fois.
+
+Les 25 phrases du thème 1 prennent une dizaine de minutes et changent tout : ce sont
+celles que les enfants entendront le plus. Passez le téléphone à la personne, elle n'a
+besoin d'aucune explication — la consigne est à l'écran.
 
 ---
 
@@ -145,7 +158,8 @@ en mode tout-petit, `notes: [...]` ajoute les explications de grammaire vues par
 
 ## Pistes pour la suite
 
-- Enregistrer les phrases complètes, pas seulement les mots isolés
+- Exporter et importer les voix enregistrées, pour n'avoir à les enregistrer qu'une fois
+  puis les copier sur les autres téléphones de la famille
 - Un mode « défi famille » : deux profils s'affrontent sur le même téléphone
 - Reconnaissance vocale pour comparer sa prononciation à l'enregistrement
 - Des mini-histoires illustrées une fois les 100 premiers mots acquis
