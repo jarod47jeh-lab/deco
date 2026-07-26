@@ -40,12 +40,18 @@ const speakerBtn = (item, cls = 'speaker') =>
     },
   }, '🔊');
 
-/** Choix des distracteurs : dans la même unité en priorité. */
+/**
+ * Choix des distracteurs : dans la même unité en priorité.
+ * On écarte ceux qui partagent l'emoji ou la traduction de la bonne réponse,
+ * sinon la manche devient impossible à trancher (🐘 « éléphant » et 🐘 « grand »).
+ */
 function distractors(item, pool, n) {
-  const sameUnit = pool.filter((x) => x.unit === item.unit && x.id !== item.id);
-  const others = pool.filter((x) => x.unit !== item.unit);
+  const usable = pool.filter((x) => x.id !== item.id && x.emoji !== item.emoji && x.fr !== item.fr);
+  const sameUnit = usable.filter((x) => x.unit === item.unit);
+  const others = usable.filter((x) => x.unit !== item.unit);
+  // Les deux ensembles sont disjoints : pas de doublon possible dans les choix.
   const chosen = sample(sameUnit, n);
-  while (chosen.length < n && others.length) chosen.push(...sample(others, n - chosen.length));
+  if (chosen.length < n) chosen.push(...sample(others, n - chosen.length));
   return chosen.slice(0, n);
 }
 

@@ -55,9 +55,17 @@ la fait lire à voix haute en français, les réponses sont des images, et le mo
 
 ### Le contenu
 
-183 mots et phrases, répartis en 14 thèmes : salutations, chiffres, couleurs, famille,
-animaux, manger & boire, le corps, la maison, école & jeux, le temps, les verbes utiles,
-poser des questions, les mots magiques, les phrases du quotidien.
+321 mots et phrases, répartis en 21 thèmes : salutations, chiffres, couleurs,
+grand ou petit, famille, animaux, manger & boire, le corps, la maison, les habits,
+école & jeux, dehors & la nature, on sort !, où ça ?, le temps, les verbes utiles,
+poser des questions, les mots magiques, ce que je dis, c'est la fête !, les phrases
+du quotidien.
+
+Deux thèmes visent directement les enfants : **« Ce que je dis »** rassemble 25 phrases
+qu'ils peuvent réellement prononcer à table ou dans la cour (« c'est mon tour »,
+« attends-moi », « aide-moi s'il te plaît », « j'ai mal ici », « je t'aime maman »), et
+**« C'est la fête ! »** couvre anniversaires et Aïd. 17 des 21 thèmes sont accessibles
+en mode tout-petit.
 
 Chaque entrée a : le français, le darija en lettres latines (« arabizi » : `3` = ع,
 `7` = ح, `9` = ق), l'écriture arabe, une image, et parfois une note (féminin, variante…).
@@ -128,7 +136,7 @@ Dans `js/data.js`, chaque entrée suit la forme
 `w(id, français, darija, arabe, emoji, note?)` :
 
 ```js
-w('eat19', 'Des olives', 'Zitoun', 'زيتون', '🫒'),
+w('eat28', 'Des dattes', 'Tmer', 'تمر', '🌴'),
 ```
 
 Un `id` unique suffit ; le reste (jeux, révision, statistiques) s'adapte tout seul.
