@@ -1,6 +1,6 @@
 // Service worker : l'app fonctionne sans connexion une fois ouverte une première fois.
 
-const CACHE = 'darija-v4';
+const CACHE = 'darija-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -17,6 +17,7 @@ const ASSETS = [
   './js/dom.js',
   './js/zip.js',
   './js/speech.js',
+  './js/stories.js',
 ];
 
 self.addEventListener('install', (e) => {

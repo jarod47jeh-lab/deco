@@ -34,6 +34,10 @@ Une fois installée, elle s'ouvre en plein écran comme une vraie app, **et elle
 fonctionne sans réseau** : le service worker garde tout en cache. L'ordinateur
 n'a besoin d'être allumé que pour la toute première ouverture (et pour les mises à jour).
 
+Quand vous modifiez le contenu — pour ajouter du vocabulaire, par exemple — relancez le
+petit serveur et **ouvrez l'app deux fois** sur le téléphone : la première ouverture
+récupère la nouvelle version en arrière-plan, la seconde l'affiche.
+
 ---
 
 ## Comment c'est pensé
@@ -84,6 +88,21 @@ un mot et le retenir.
 badges, une mascotte chamelle qui encourage en darija, des bruitages, et un jeu
 de paires par thème. Les sessions sont courtes exprès : 4 manches pour la petite,
 6 pour le moyen, 8 pour l'adulte.
+
+### Les histoires
+
+Cinq mini-histoires illustrées de huit scènes — le matin, le marché, le chat perdu,
+l'anniversaire, la mer — construites presque uniquement avec le vocabulaire des thèmes.
+C'est l'étape d'après les mots isolés : on suit une scène et on comprend le sens
+général sans traduire mot à mot.
+
+Chaque histoire se termine par trois questions de compréhension à réponses illustrées,
+et **la question est lue à voix haute en français** : la plus jeune peut y répondre sans
+savoir lire. La liste indique, pour chaque histoire, combien de ses mots l'apprenant a
+déjà rencontrés.
+
+Les scènes ont leur propre identifiant : elles apparaissent dans le studio comme des
+thèmes à part entière, donc un locuteur natif peut aussi enregistrer les histoires.
 
 ### Le défi famille
 
@@ -197,6 +216,7 @@ js/
   games.js              les six types de manches + le jeu de paires
   zip.js                lecture et écriture d'archives, pour le transfert des voix
   speech.js             reconnaissance vocale facultative et comparaison de graphies
+  stories.js            les mini-histoires et leurs questions
   dom.js                helpers
 icons/                  icônes de l'app
 tools/make_icons.py     régénère les PNG à partir du SVG
@@ -217,4 +237,5 @@ en mode tout-petit, `notes: [...]` ajoute les explications de grammaire vues par
 
 ## Pistes pour la suite
 
-- Des mini-histoires illustrées une fois les 100 premiers mots acquis
+- D'autres histoires, et des histoires plus longues à mesure que le vocabulaire grandit
+- Un mode « écoute seule » pour la voiture : les mots défilent sans rien toucher

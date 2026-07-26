@@ -117,6 +117,7 @@ export function addProfile({ name, age, avatar, mode }) {
     srs: {},            // itemId -> { box, due, seen, ok }
     streak: { count: 0, last: null, best: 0 },
     duels: { played: 0, won: 0 },
+    storiesRead: [],
     badges: [],
     createdAt: todayKey(),
   };
@@ -208,6 +209,15 @@ export function recordAnswer(itemId, ok) {
   recordAnswerFor(state.activeId, itemId, ok);
 }
 
+/** Une histoire lue jusqu'aux questions. */
+export function recordStory(profileId, storyId) {
+  const p = byId(profileId);
+  if (!p) return;
+  p.storiesRead = p.storiesRead || [];
+  if (!p.storiesRead.includes(storyId)) p.storiesRead.push(storyId);
+  save();
+}
+
 /** Un défi joué, et éventuellement gagné. */
 export function recordDuel(profileId, won) {
   const p = byId(profileId);
@@ -247,6 +257,8 @@ const BADGE_DEFS = [
   { id: 'stars10', emoji: '⭐', label: '10 étoiles', test: (p) => totalStars(p) >= 10 },
   { id: 'stars30', emoji: '🌠', label: '30 étoiles', test: (p) => totalStars(p) >= 30 },
   { id: 'known20', emoji: '🧠', label: '20 mots mémorisés', test: (p) => knownCount(p) >= 20 },
+  { id: 'story1', emoji: '📚', label: 'Première histoire', test: (p) => (p.storiesRead?.length || 0) >= 1 },
+  { id: 'story3', emoji: '📖', label: '3 histoires lues', test: (p) => (p.storiesRead?.length || 0) >= 3 },
   { id: 'duel1', emoji: '⚔️', label: 'Premier défi', test: (p) => (p.duels?.played || 0) >= 1 },
   { id: 'duelwin', emoji: '🥇', label: 'Vainqueur', test: (p) => (p.duels?.won || 0) >= 1 },
   { id: 'duel5', emoji: '👑', label: '5 défis gagnés', test: (p) => (p.duels?.won || 0) >= 5 },

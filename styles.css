@@ -324,6 +324,18 @@ h1, h2 { margin: 0; }
 .heard-text { margin: 0; color: var(--muted); }
 .heard-text .ar { color: var(--ink); font-size: 1.4rem; }
 
+/* --- Histoires --- */
+
+.story-btn { background: linear-gradient(135deg, #6366f1, #0891b2); }
+.story-card {
+  display: flex; align-items: center; gap: 12px; text-align: left; width: 100%;
+  background: var(--card); border-radius: 16px; padding: 12px 14px;
+  box-shadow: var(--shadow); min-height: var(--tap);
+  border-left: 5px solid var(--c);
+}
+.story-emoji { font-size: 2.2rem; }
+.story-dr { font-size: 1.5rem; font-weight: 800; margin: 0; color: var(--c); }
+
 /* --- Défi famille --- */
 
 .duel-btn { background: linear-gradient(135deg, #f59e0b, #ef4444); }

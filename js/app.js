@@ -4,6 +4,7 @@ import { UNITS, UNIT_BY_ID, ALL_ITEMS, SOUNDS, RECORDING_PRIORITY } from './data
 import * as store from './store.js';
 import * as audio from './audio.js';
 import { ROUNDS, chooseRound, memoryBoard } from './games.js';
+import { STORIES, STORY_BY_ID, STORY_UNITS, storyWordIds } from './stories.js';
 import * as speech from './speech.js';
 import { el, clear, shuffle, sample, pick, wait } from './dom.js';
 
@@ -208,6 +209,11 @@ VIEWS.home = () => {
       onclick: () => go('duelSetup'),
     }, '🏆 Défi famille'));
   }
+
+  wrap.append(el('button', {
+    class: 'primary wide story-btn',
+    onclick: () => go('stories'),
+  }, '📚 Les histoires'));
 
   wrap.append(el('h2', { class: 'section' }, 'Les thèmes'));
   wrap.append(
@@ -450,6 +456,122 @@ VIEWS.memory = ({ unitId }) => {
     wrap.append(el('button', { class: 'primary wide', onclick: () => go('memory', { unitId }, { replace: true }) }, '🔁 Encore'));
   }));
   return wrap;
+};
+
+// --- Écrans : les histoires -------------------------------------------------
+
+VIEWS.stories = () => {
+  const p = store.active();
+  return el('div', { class: 'screen' }, [
+    header('📚 Les histoires'),
+    mascot('Des petites histoires avec les mots que tu connais déjà. Écoute, regarde, puis réponds aux questions.'),
+    el('div', { class: 'word-list' },
+      STORIES.map((s) => {
+        const words = storyWordIds(s, ALL_ITEMS);
+        const known = words.filter((id) => p?.srs[id]).length;
+        const done = p?.storiesRead?.includes(s.id);
+        return el('button', {
+          class: 'story-card',
+          style: { '--c': s.color },
+          onclick: () => go('story', { storyId: s.id, i: 0 }),
+        }, [
+          el('span', { class: 'story-emoji' }, s.emoji),
+          el('span', { class: 'word-text' }, [
+            el('b', {}, s.title),
+            el('small', {}, `${s.scenes.length} images · ${known} mots sur ${words.length} déjà vus`),
+          ]),
+          el('span', { class: 'medal' }, done ? '✅' : '▶️'),
+        ]);
+      })
+    ),
+  ]);
+};
+
+VIEWS.story = ({ storyId, i }) => {
+  const s = STORY_BY_ID[storyId];
+  const cfg = store.mode();
+  const scene = s.scenes[i];
+  const last = i === s.scenes.length - 1;
+
+  setTimeout(() => audio.playItem(scene), 350);
+
+  return el('div', { class: 'screen', style: { '--c': s.color } }, [
+    header(`${s.emoji} ${s.title} · ${i + 1}/${s.scenes.length}`),
+    el('div', { class: 'progress' }, [
+      el('div', { class: 'bar', style: { width: ((i + 1) / s.scenes.length) * 100 + '%' } }),
+    ]),
+    el('div', { class: 'learn-card', onclick: () => audio.playItem(scene) }, [
+      el('span', { class: 'emoji hero-size' }, scene.emoji),
+      el('p', { class: 'learn-fr' }, scene.fr),
+      el('p', { class: 'story-dr' }, scene.dr),
+      cfg.showArabic && scene.ar ? el('p', { class: 'learn-ar' }, scene.ar) : null,
+      el('div', { class: 'row-btns' }, [
+        el('button', { class: 'secondary grow', onclick: (e) => { e.stopPropagation(); audio.playItem(scene); } }, '🔊 Écouter'),
+        el('button', { class: 'secondary grow', onclick: (e) => { e.stopPropagation(); audio.playItem(scene, { slow: true }); } }, '🐢 Lentement'),
+      ]),
+    ]),
+    el('div', { class: 'row-btns' }, [
+      i > 0 ? el('button', { class: 'secondary', onclick: () => go('story', { storyId, i: i - 1 }, { replace: true }) }, '←') : null,
+      el('button', {
+        class: 'primary grow',
+        onclick: () => (last
+          ? go('storyQuiz', { storyId, qi: 0, correct: 0 }, { replace: true })
+          : go('story', { storyId, i: i + 1 }, { replace: true })),
+      }, last ? '❓ Les questions' : 'Suite →'),
+    ]),
+  ]);
+};
+
+VIEWS.storyQuiz = ({ storyId, qi, correct }) => {
+  const s = STORY_BY_ID[storyId];
+  const question = s.questions[qi];
+
+  if (!question) {
+    const total = s.questions.length;
+    store.addXp(correct * 10);
+    store.touchStreak();
+    store.recordStory(store.active()?.id, storyId);
+    const fresh = store.refreshBadges();
+    audio.sfx.win();
+    return el('div', { class: 'screen center' }, [
+      el('h1', { class: 'big-title' }, 'Bravo !'),
+      el('p', { class: 'result-line' }, `${correct} / ${total} bonnes réponses`),
+      el('p', { class: 'result-xp' }, `+${correct * 10} points · ${s.title}`),
+      ...fresh.map((b) => el('div', { class: 'badge-pop' }, `${b.emoji} Nouveau badge : ${b.label}`)),
+      mascot(pick(['Mzyan bzzaf !', 'Tu as tout suivi !', 'Yallah, une autre histoire ?'])),
+      el('div', { class: 'row-btns' }, [
+        el('button', { class: 'primary grow', onclick: () => go('story', { storyId, i: 0 }, { replace: true }) }, '🔁 Relire'),
+        el('button', { class: 'secondary grow', onclick: () => go('stories', {}, { replace: true }) }, '📚 Les histoires'),
+      ]),
+    ]);
+  }
+
+  const opts = shuffle(question.options);
+  const node = el('div', { class: 'screen', style: { '--c': s.color } }, [
+    header(`❓ Question ${qi + 1}/${s.questions.length}`),
+    el('p', { class: 'instruction' }, question.ask),
+    el('div', { class: 'grid cards-' + opts.length },
+      opts.map((o) =>
+        el('button', {
+          class: 'card pick',
+          onclick: async (e) => {
+            const ok = !!o.ok;
+            node.querySelectorAll('button').forEach((b) => (b.disabled = true));
+            e.currentTarget.classList.add(ok ? 'ok' : 'ko');
+            ok ? audio.sfx.good() : audio.sfx.bad();
+            await wait(ok ? 700 : 1400);
+            go('storyQuiz', { storyId, qi: qi + 1, correct: correct + (ok ? 1 : 0) }, { replace: true });
+          },
+        }, [
+          el('span', { class: 'emoji' }, o.emoji),
+          el('span', { class: 'card-label' }, o.fr),
+        ])
+      )
+    ),
+  ]);
+  // La question est lue à voix haute : la plus jeune n'a pas besoin de savoir lire.
+  setTimeout(() => audio.playFrench(question.ask), 250);
+  return node;
 };
 
 // --- Écran : s'entraîner à prononcer ----------------------------------------
@@ -867,7 +989,9 @@ VIEWS.guide = () => {
 const STUDIO_ORDER = [
   ...RECORDING_PRIORITY.map((id) => UNIT_BY_ID[id]).filter(Boolean),
   ...UNITS.filter((u) => !RECORDING_PRIORITY.includes(u.id)),
+  ...STORY_UNITS,
 ];
+const STUDIO_BY_ID = Object.fromEntries(STUDIO_ORDER.map((u) => [u.id, u]));
 
 // Retenu entre deux passages dans le studio, pour ne pas repartir de zéro.
 let studioUnitId = STUDIO_ORDER[0].id;
@@ -903,7 +1027,7 @@ VIEWS.studio = () => {
 
   const drawList = () => {
     clear(listEl);
-    const u = UNIT_BY_ID[studioUnitId];
+    const u = STUDIO_BY_ID[studioUnitId];
     u.items.forEach((it) => {
       const has = audio.recordedIds.has(it.id);
       const recBtn = el('button', { class: 'rec-btn' + (has ? ' has' : '') }, has ? '🎙️' : '⚪');
