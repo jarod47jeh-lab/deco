@@ -49,7 +49,10 @@ const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000)
 
 // Réglages communs à tous les profils. L'écoute automatique est refusée par
 // défaut : elle envoie la voix à un service en ligne (voir js/speech.js).
-const DEFAULT_SETTINGS = { speech: false };
+// realVoiceOnly : n'utiliser que les voix enregistrées. La synthèse ne parle
+// que l'arabe standard — pour un débutant, entendre un mauvais modèle est pire
+// que de n'entendre personne.
+const DEFAULT_SETTINGS = { speech: false, realVoiceOnly: false };
 
 const blank = () => ({ profiles: [], activeId: null, settings: { ...DEFAULT_SETTINGS } });
 

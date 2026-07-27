@@ -90,6 +90,19 @@ function insecureWarning(what) {
   ]);
 }
 
+/** Ce que l'apprenant va entendre : vraie voix, ou synthèse en arabe standard. */
+function voiceTag(item) {
+  const real = audio.recordedIds.has(item.id);
+  return el('span', {
+    class: 'voice-tag' + (real ? ' real' : ''),
+    title: real ? 'Voix enregistrée' : 'Synthèse : arabe standard, pas du darija',
+  }, real ? '🎙️ vraie voix' : '🤖 synthèse');
+}
+
+/** En mode « vraies voix seulement », on ne propose que les mots enregistrés. */
+const voiceFilter = (items) =>
+  store.settings().realVoiceOnly ? items.filter((it) => audio.recordedIds.has(it.id)) : items;
+
 function mascot(text) {
   return el('div', { class: 'mascot' }, [
     el('span', { class: 'mascot-face' }, '🐪'),
@@ -200,7 +213,7 @@ VIEWS.newProfile = () => {
 
 function dailyPlan(p, cfg) {
   const units = UNITS.filter((u) => (cfg.id === 'petit' ? u.kid : true));
-  const pool = units.flatMap((u) => u.items.map((i) => ({ ...i, unit: u.id })));
+  const pool = voiceFilter(units.flatMap((u) => u.items.map((i) => ({ ...i, unit: u.id }))));
 
   // Les plus en retard d'abord.
   const due = store.dueItems(pool, p).sort((a, b) => (p.srs[a.id].due < p.srs[b.id].due ? -1 : 1));
@@ -253,6 +266,28 @@ VIEWS.home = () => {
         : `Salam ${p.name} ! Choisis un thème et on y va.`
     ),
   ]);
+
+  if (audio.recordedIds.size === 0) {
+    wrap.append(el('div', { class: 'warn soft' }, [
+      el('b', {}, '🤖 Aucune voix enregistrée'),
+      el('p', {}, 'Ce que vous entendez est de la synthèse en arabe standard — pas du darija. ' +
+        'Le Studio voix (🎙️ en bas) remplace ça par de vraies voix.'),
+    ]));
+  }
+
+  if (store.settings().realVoiceOnly && audio.recordedIds.size === 0) {
+    wrap.append(el('div', { class: 'warn' }, [
+      el('b', {}, '🎙️ Aucune voix enregistrée'),
+      el('p', {}, 'Tu as choisi de n’entendre que de vraies voix, mais aucune n’est encore ' +
+        'enregistrée. Passe par le Studio, ou réautorise la synthèse dans l’espace parents.'),
+    ]));
+    wrap.append(el('button', { class: 'primary wide', onclick: () => go('studio') }, '🎙️ Studio voix'));
+    wrap.append(el('div', { class: 'tools' }, [
+      el('button', { class: 'tool', onclick: () => go('guide') }, ['📖', 'Prononcer']),
+      el('button', { class: 'tool', onclick: () => go('parents') }, ['👨‍👩‍👧', 'Parents']),
+    ]));
+    return wrap;
+  }
 
   const plan = dailyPlan(p, cfg);
   const doneToday = store.practicedToday(p);
@@ -336,7 +371,7 @@ VIEWS.unit = ({ unitId }) => {
       el('button', {
         class: 'primary',
         onclick: () => go('session', {
-          itemIds: sample(u.items, Math.min(cfg.perSession, u.items.length)).map((i) => i.id),
+          itemIds: sample(voiceFilter(u.items), Math.min(cfg.perSession, voiceFilter(u.items).length)).map((i) => i.id),
           title: u.title,
           unitId,
         }),
@@ -400,6 +435,7 @@ VIEWS.learn = ({ unitId, i }) => {
     ]),
     el('div', { class: 'learn-card', onclick: () => audio.playItem(it) }, [
       el('span', { class: 'emoji hero-size' }, it.emoji),
+      voiceTag(it),
       // En découverte on affiche toujours le texte : l'enfant qui ne lit pas
       // ignore simplement, et l'adulte à côté de lui peut lire le mot.
       el('p', { class: 'learn-fr' }, it.fr),
@@ -434,6 +470,16 @@ VIEWS.learn = ({ unitId, i }) => {
 VIEWS.session = ({ itemIds, title, unitId }) => {
   const cfg = store.mode();
   const queue = shuffle(itemIds.map((id) => ALL_ITEMS.find((x) => x.id === id)).filter(Boolean));
+
+  // Peut arriver en mode « vraies voix seulement » : rien à jouer ici.
+  if (!queue.length) {
+    return el('div', { class: 'screen center' }, [
+      header(title || 'Séance'),
+      mascot('Aucun mot enregistré pour ce thème — et tu as choisi de n’entendre que de vraies voix.'),
+      el('button', { class: 'primary wide', onclick: () => reset('studio') }, '🎙️ Aller enregistrer'),
+      el('button', { class: 'link-btn', onclick: () => reset('home') }, 'Retour à l’accueil'),
+    ]);
+  }
   const pool = unitId
     ? ALL_ITEMS.filter((x) => x.unit === unitId).concat(sample(ALL_ITEMS, 12))
     : ALL_ITEMS;
@@ -555,15 +601,15 @@ VIEWS.listen = ({ unitId }) => {
   let queue;
   let title;
   if (unitId === 'due') {
-    queue = shuffle(store.dueItems(ALL_ITEMS, p));
+    queue = shuffle(voiceFilter(store.dueItems(ALL_ITEMS, p)));
     title = 'À réviser';
   } else if (unitId === 'all') {
     const units = UNITS.filter((u) => (cfg.id === 'petit' ? u.kid : true));
-    queue = shuffle(units.flatMap((u) => u.items.map((i) => ({ ...i, unit: u.id }))));
+    queue = shuffle(voiceFilter(units.flatMap((u) => u.items.map((i) => ({ ...i, unit: u.id })))));
     title = 'Tout mélangé';
   } else {
     const u = UNIT_BY_ID[unitId];
-    queue = u.items.map((i) => ({ ...i, unit: u.id }));
+    queue = voiceFilter(u.items.map((i) => ({ ...i, unit: u.id })));
     title = u.title;
   }
 
@@ -1551,6 +1597,26 @@ VIEWS.parents = () => {
     ].map(([k, v]) => el('div', { class: 'stat' }, [el('b', {}, v), el('small', {}, k)]))),
     insecureWarning('Le mode hors ligne et le micro'),
 
+    el('h2', { class: 'section' }, 'La voix des mots'),
+    el('p', { class: 'hint' },
+      `${audio.recordedIds.size} mots ont une vraie voix enregistrée sur ${ALL_ITEMS.length}. ` +
+      'Les autres sont dits par la synthèse du téléphone, qui ne parle que l’arabe standard : ' +
+      'la prononciation entendue n’est pas du darija.'),
+    el('button', {
+      class: 'answer col' + (store.settings().realVoiceOnly ? ' selected' : ''),
+      onclick: () => {
+        const on = !store.settings().realVoiceOnly;
+        store.setSetting('realVoiceOnly', on);
+        audio.setSynthesisAllowed(!on);
+        go('parents', {}, { replace: true });
+      },
+    }, [
+      el('b', {}, store.settings().realVoiceOnly ? '✅ Vraies voix seulement' : '⬜ Synthèse autorisée'),
+      el('small', {}, store.settings().realVoiceOnly
+        ? `Les jeux n’utilisent que les ${audio.recordedIds.size} mots enregistrés`
+        : 'Les enfants entendent parfois de l’arabe standard'),
+    ]),
+
     el('h2', { class: 'section' }, 'Écoute automatique'),
     el('p', { class: 'hint' },
       speech.available()
@@ -1621,6 +1687,7 @@ document.addEventListener('click', (e) => {
 
 async function boot() {
   await audio.loadRecordedIndex();
+  audio.setSynthesisAllowed(!store.settings().realVoiceOnly);
   reset(store.active() ? 'home' : 'profiles');
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});

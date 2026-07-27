@@ -251,6 +251,12 @@ function speak(text, langs, rate) {
   });
 }
 
+// Quand la famille a enregistré ses voix, elle peut interdire la synthèse :
+// les enfants n'entendent alors que du vrai darija, ou rien.
+let synthesisAllowed = true;
+export const setSynthesisAllowed = (v) => { synthesisAllowed = v; };
+export const isSynthetic = (item) => !recordedIds.has(item.id);
+
 /**
  * Joue un mot en darija : l'enregistrement d'un locuteur natif s'il existe,
  * sinon la synthèse arabe (approximative), sinon rien.
@@ -262,6 +268,7 @@ export async function playItem(item, { slow = false } = {}) {
     await playUrl(url, { rate: slow ? 0.7 : 1 });
     return;
   }
+  if (!synthesisAllowed) return;
   const text = item.ar || item.dr;
   await speak(text, ['ar-ma', 'ar'], slow ? 0.6 : 0.85);
 }

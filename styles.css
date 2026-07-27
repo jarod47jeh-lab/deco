@@ -330,7 +330,14 @@ h1, h2 { margin: 0; }
   background: color-mix(in srgb, var(--ko) 12%, var(--card));
   border: 2px solid var(--ko); border-radius: 16px; padding: 12px 14px;
 }
+.warn.soft { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--card)); }
 .warn b { display: block; margin-bottom: 4px; }
+
+.voice-tag {
+  font-size: .8rem; padding: 3px 10px; border-radius: 999px;
+  background: color-mix(in srgb, var(--ko) 14%, var(--card)); color: var(--ink);
+}
+.voice-tag.real { background: color-mix(in srgb, var(--ok) 18%, var(--card)); }
 .warn p { margin: 0; font-size: .9rem; }
 
 /* --- Séance du jour --- */
