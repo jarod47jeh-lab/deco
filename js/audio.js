@@ -195,8 +195,59 @@ function pickVoice(langs) {
   return null;
 }
 
+// --- Déblocage iOS ----------------------------------------------------------
+//
+// Safari sur iPhone refuse tout son qui ne part pas d'un geste de l'utilisateur,
+// et la toute première synthèse doit elle aussi être déclenchée dans ce geste.
+// Sans ce déblocage, un mot lancé automatiquement à l'ouverture d'un écran est
+// bloqué, et souvent tout le reste de la session avec lui.
+
+const SILENCE = 'data:audio/wav;base64,UklGRiwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQgAAACAgICAgICAgA==';
+let unlocked = false;
+
+export function unlockAudio() {
+  if (unlocked) return;
+  unlocked = true;
+  try { ac(); } catch { /* WebAudio indisponible */ }
+  try {
+    const a = new Audio(SILENCE);
+    a.volume = 0;
+    a.play().catch(() => {});
+  } catch { /* lecture refusée */ }
+  if (window.speechSynthesis) {
+    try {
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;
+      window.speechSynthesis.speak(u);
+    } catch { /* synthèse indisponible */ }
+  }
+}
+
+export const isAudioUnlocked = () => unlocked;
+
 export function hasArabicVoice() {
   return !!pickVoice(['ar-ma', 'ar']);
+}
+
+export const voiceCount = () => voices.length;
+
+/** Diagnostic : que peut réellement produire cet appareil ? */
+export async function testAudio(sampleItem) {
+  const out = { bruitage: false, francais: false, arabe: false, enregistrement: null };
+  try { sfx.good(); out.bruitage = true; } catch { /* rien */ }
+  try { await speak('test', ['fr-fr', 'fr'], 1); out.francais = true; } catch { /* rien */ }
+  if (hasArabicVoice()) {
+    try { await speak(sampleItem?.ar || 'سلام', ['ar-ma', 'ar'], 0.85); out.arabe = true; } catch { /* rien */ }
+  }
+  const anyId = [...recordedIds][0];
+  if (anyId) {
+    const url = await getClipUrl(anyId);
+    if (url) {
+      await playUrl(url);
+      out.enregistrement = true;
+    }
+  }
+  return out;
 }
 
 let currentAudio = null;
@@ -269,6 +320,8 @@ export async function playItem(item, { slow = false } = {}) {
     return;
   }
   if (!synthesisAllowed) return;
+  // Sans voix arabe installée, iOS ne dit rien du tout : inutile d'essayer.
+  if (!hasArabicVoice()) return;
   const text = item.ar || item.dr;
   await speak(text, ['ar-ma', 'ar'], slow ? 0.6 : 0.85);
 }

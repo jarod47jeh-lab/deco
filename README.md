@@ -200,6 +200,23 @@ L'app ne le cache donc plus :
   jeux ne tirent que des mots enregistrés. Pour un débutant, entendre un mauvais modèle
   est pire que de n'entendre personne — surtout à 5 ans, où l'oreille enregistre tout.
 
+### Le son sur iPhone
+
+Trois pièges, tous rencontrés à l'usage :
+
+1. **iOS n'autorise le son qu'à partir d'un geste de l'utilisateur**, et la toute
+   première synthèse doit partir de ce geste. Un mot joué automatiquement à
+   l'ouverture d'un écran est refusé, et souvent toute la session avec lui. L'app
+   débloque donc l'audio au premier contact avec l'écran.
+2. **Sans voix arabe installée, iOS reste muet.** L'app ne tente plus la synthèse
+   dans ce cas et le dit : Réglages → Accessibilité → Contenu énoncé → Voix → Arabe.
+3. **L'interrupteur silencieux sur le côté du téléphone** coupe aussi le son des
+   applications web.
+
+L'espace parents affiche l'état (voix arabe, nombre de voix système, son débloqué) et
+propose un bouton **« Tester le son »** qui essaie tour à tour les bruitages, la voix
+française, la voix arabe et un mot enregistré, puis dit lequel est muet.
+
 ### Le vocabulaire est corrigeable dans l'app
 
 **Le contenu livré n'a pas été écrit par un locuteur natif.** Il contient donc des

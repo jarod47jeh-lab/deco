@@ -1605,6 +1605,42 @@ VIEWS.parents = () => {
     ].map(([k, v]) => el('div', { class: 'stat' }, [el('b', {}, v), el('small', {}, k)]))),
     insecureWarning('Le mode hors ligne et le micro'),
 
+    el('h2', { class: 'section' }, 'Le son'),
+    el('div', { class: 'stat-grid' }, [
+      ['Voix arabe', audio.hasArabicVoice() ? 'oui' : 'absente'],
+      ['Voix système', String(audio.voiceCount())],
+      ['Son débloqué', audio.isAudioUnlocked() ? 'oui' : 'non'],
+    ].map(([k, v]) => el('div', { class: 'stat' }, [el('b', {}, v), el('small', {}, k)]))),
+    !audio.hasArabicVoice()
+      ? el('div', { class: 'warn' }, [
+          el('b', {}, '⚠️ Aucune voix arabe sur cet appareil'),
+          el('p', {}, 'Les mots ne peuvent donc pas être prononcés par la synthèse. ' +
+            'Sur iPhone : Réglages → Accessibilité → Contenu énoncé → Voix → Arabe, et télécharger une voix. ' +
+            'Les mots enregistrés dans le Studio, eux, fonctionnent quoi qu’il arrive.'),
+        ])
+      : null,
+    el('button', {
+      class: 'secondary wide',
+      onclick: async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        btn.textContent = '🔊 test en cours…';
+        const r = await audio.testAudio(ALL_ITEMS[0]);
+        btn.disabled = false;
+        btn.textContent = '🔊 Tester le son';
+        alert(
+          'Résultat du test :\n\n' +
+          `Bruitages : ${r.bruitage ? 'ok' : 'muet'}\n` +
+          `Voix française : ${r.francais ? 'ok' : 'muette'}\n` +
+          `Voix arabe : ${audio.hasArabicVoice() ? (r.arabe ? 'ok' : 'muette') : 'absente de l’appareil'}\n` +
+          `Mot enregistré : ${r.enregistrement === null ? 'aucun à tester' : (r.enregistrement ? 'ok' : 'muet')}\n\n` +
+          'Si tout est « ok » mais que vous n’entendez rien : vérifiez le petit ' +
+          'interrupteur silencieux sur le côté de l’iPhone, et le volume.'
+        );
+      },
+    }, '🔊 Tester le son'),
+    el('p', { class: 'hint' }, 'Sur iPhone, l’interrupteur silencieux coupe aussi le son des apps web.'),
+
     el('h2', { class: 'section' }, 'Corrections du vocabulaire'),
     el('p', { class: 'hint' },
       `${Object.keys(store.overrides()).length} mot(s) corrigé(s). Le vocabulaire livré a été écrit ` +
@@ -1788,6 +1824,11 @@ VIEWS.editWord = ({ itemId, unitId }) => {
 };
 
 // --- Démarrage --------------------------------------------------------------
+
+// iOS n'autorise le son qu'à partir d'un geste : on débloque au premier contact.
+['pointerdown', 'touchstart', 'keydown'].forEach((ev) =>
+  document.addEventListener(ev, () => audio.unlockAudio(), { once: true, capture: true })
+);
 
 // Les consignes se font lire à voix haute : indispensable quand on ne sait pas lire.
 document.addEventListener('click', (e) => {
