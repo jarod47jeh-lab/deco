@@ -185,6 +185,21 @@ les mots une fois, directement dans l'app. Les enregistrements sont stockés sur
 (IndexedDB) et **remplacent automatiquement la synthèse partout** : dans les leçons, dans
 les jeux, dans le jeu de paires.
 
+### Ce que la synthèse ne peut pas faire
+
+Testé en famille, c'est le premier reproche qui remonte : **on entend de l'arabe
+littéraire**. C'est exact, et ce n'est pas réparable côté logiciel — la synthèse d'un
+téléphone ne connaît que l'arabe standard. Même un mot correctement écrit en darija
+sort avec un accent de journal télévisé.
+
+L'app ne le cache donc plus :
+
+- un bandeau sur l'accueil tant qu'aucune voix n'est enregistrée ;
+- chaque mot affiche **🎙️ vraie voix** ou **🤖 synthèse** ;
+- un réglage **« Vraies voix seulement »** dans l'espace parents : une fois activé, les
+  jeux ne tirent que des mots enregistrés. Pour un débutant, entendre un mauvais modèle
+  est pire que de n'entendre personne — surtout à 5 ans, où l'oreille enregistre tout.
+
 ### Comment mener une séance d'enregistrement
 
 Le studio s'ouvre sur l'ordre conseillé, phrases d'enfants en tête :
