@@ -200,6 +200,23 @@ L'app ne le cache donc plus :
   jeux ne tirent que des mots enregistrés. Pour un débutant, entendre un mauvais modèle
   est pire que de n'entendre personne — surtout à 5 ans, où l'oreille enregistre tout.
 
+### Le vocabulaire est corrigeable dans l'app
+
+**Le contenu livré n'a pas été écrit par un locuteur natif.** Il contient donc des
+maladresses, des tournures trop littéraires et des régionalismes — c'est remonté dès
+le premier test en famille.
+
+Chaque mot a un bouton **✏️** dans la liste de son thème : on corrige le français, la
+transcription latine, l'écriture arabe et la note, et la correction s'applique
+immédiatement partout — jeux, histoires, révisions. Un bouton permet toujours de
+revenir à la version d'origine.
+
+L'espace parents exporte les corrections en JSON, pour les partager entre téléphones
+ou les renvoyer afin qu'elles soient intégrées au contenu livré.
+
+Faites-le relire par quelqu'un de marocain, mot par mot, thème par thème. C'est la
+seule façon d'obtenir un contenu juste.
+
 ### Comment mener une séance d'enregistrement
 
 Le studio s'ouvre sur l'ordre conseillé, phrases d'enfants en tête :

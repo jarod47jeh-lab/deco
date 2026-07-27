@@ -391,7 +391,9 @@ VIEWS.unit = ({ unitId }) => {
   const list = el('div', { class: 'word-list' });
   u.items.forEach((it) => {
     const card = store.active()?.srs[it.id];
-    list.append(el('button', {
+    // Ligne cliquable pour écouter + bouton de correction à côté : deux boutons
+    // frères, car imbriquer l'un dans l'autre serait invalide.
+    const row = el('button', {
       class: 'word-row',
       onclick: () => audio.playItem({ ...it, unit: u.id }),
     }, [
@@ -407,7 +409,13 @@ VIEWS.unit = ({ unitId }) => {
         card ? '•'.repeat(Math.min(card.box, 5)) : '',
       ].join(' ')),
       el('span', { class: 'speaker' }, '🔊'),
-    ]));
+    ]);
+    const edit = el('button', {
+      class: 'edit-word' + (store.overrides()[it.id] ? ' done' : ''),
+      'aria-label': 'Corriger ' + it.dr,
+      onclick: () => go('editWord', { itemId: it.id, unitId: u.id }),
+    }, '✏️');
+    list.append(el('div', { class: 'word-item' }, [row, edit]));
   });
   wrap.append(list);
 
@@ -1597,6 +1605,36 @@ VIEWS.parents = () => {
     ].map(([k, v]) => el('div', { class: 'stat' }, [el('b', {}, v), el('small', {}, k)]))),
     insecureWarning('Le mode hors ligne et le micro'),
 
+    el('h2', { class: 'section' }, 'Corrections du vocabulaire'),
+    el('p', { class: 'hint' },
+      `${Object.keys(store.overrides()).length} mot(s) corrigé(s). Le vocabulaire livré a été écrit ` +
+      'par quelqu’un qui n’est pas marocain : le bouton ✏️ de chaque thème permet de le reprendre.'),
+    el('div', { class: 'row-btns' }, [
+      el('button', {
+        class: 'secondary grow',
+        disabled: Object.keys(store.overrides()).length === 0,
+        onclick: () => download(new Blob([store.exportOverrides()], { type: 'application/json' }),
+          `darija-corrections-${new Date().toISOString().slice(0, 10)}.json`),
+      }, '⬇️ Exporter'),
+      el('button', {
+        class: 'secondary grow',
+        onclick: () => {
+          const inp = el('input', { type: 'file', accept: 'application/json' });
+          inp.addEventListener('change', async () => {
+            try {
+              const n = store.importOverrides(await inp.files[0].text());
+              applyOverrides();
+              alert(`${n} correction(s) importée(s).`);
+              go('parents', {}, { replace: true });
+            } catch (e) {
+              alert('Import impossible : ' + e.message);
+            }
+          });
+          inp.click();
+        },
+      }, '⬆️ Importer'),
+    ]),
+
     el('h2', { class: 'section' }, 'La voix des mots'),
     el('p', { class: 'hint' },
       `${audio.recordedIds.size} mots ont une vraie voix enregistrée sur ${ALL_ITEMS.length}. ` +
@@ -1677,6 +1715,78 @@ VIEWS.parents = () => {
   return wrap;
 };
 
+// --- Corrections du vocabulaire ---------------------------------------------
+
+/**
+ * Applique les corrections de la famille aux objets du vocabulaire, en place.
+ * Le reste de l'app n'a rien à savoir : elle lit les mêmes objets qu'avant.
+ */
+function applyOverrides() {
+  const ov = store.overrides();
+  // ALL_ITEMS contient des copies de UNITS[].items : il faut corriger les deux,
+  // sinon la liste d'un thème continue d'afficher l'ancienne version.
+  const cibles = [
+    ...UNITS.flatMap((u) => u.items),
+    ...ALL_ITEMS,
+    ...STORIES.flatMap((s) => s.scenes),
+  ];
+  for (const it of cibles) {
+    const patch = ov[it.id];
+    if (!patch) continue;
+    if (it.original === undefined) it.original = { fr: it.fr, dr: it.dr, ar: it.ar, tip: it.tip };
+    Object.assign(it, patch);
+  }
+}
+
+/** Toutes les instances d'un mot : l'originale et sa copie dans ALL_ITEMS. */
+function itemInstances(itemId) {
+  return [
+    ...UNITS.flatMap((u) => u.items),
+    ...ALL_ITEMS,
+    ...STORIES.flatMap((s) => s.scenes),
+  ].filter((x) => x.id === itemId);
+}
+
+VIEWS.editWord = ({ itemId, unitId }) => {
+  const it = ALL_ITEMS.find((x) => x.id === itemId)
+    || STORIES.flatMap((s) => s.scenes).find((x) => x.id === itemId);
+  const base = it.original || it;
+  const corrected = !!store.overrides()[itemId];
+
+  const field = (label, value, hint) => {
+    const input = el('input', { class: 'text-input', type: 'text', value: value || '' });
+    return { node: el('label', { class: 'field' }, [label, input, hint ? el('small', { class: 'hint' }, hint) : null]), input };
+  };
+  const fr = field('Français', it.fr);
+  const dr = field('Darija en lettres latines', it.dr, '3 = ع, 7 = ح, 9 = ق, kh = خ, gh = غ, ch = ش');
+  const ar = field('Écriture arabe', it.ar);
+  const tip = field('Note (facultatif)', it.tip, 'Par exemple la forme féminine, ou une variante');
+
+  return el('div', { class: 'screen' }, [
+    header('✏️ Corriger le mot'),
+    mascot('Le vocabulaire a été écrit par quelqu’un qui n’est pas marocain. Si un mot sonne faux, corrigez-le ici : la correction s’applique partout dans l’app.'),
+    el('div', { class: 'learn-card' }, [el('span', { class: 'emoji hero-size' }, it.emoji)]),
+    fr.node, dr.node, ar.node, tip.node,
+    corrected ? el('p', { class: 'hint' }, `Version d’origine : ${base.dr} — ${base.ar}`) : null,
+    el('button', {
+      class: 'primary wide',
+      onclick: () => {
+        store.setOverride(itemId, { fr: fr.input.value, dr: dr.input.value, ar: ar.input.value, tip: tip.input.value });
+        applyOverrides();
+        back();
+      },
+    }, '✅ Enregistrer la correction'),
+    corrected ? el('button', {
+      class: 'link-btn',
+      onclick: () => {
+        store.clearOverride(itemId);
+        itemInstances(itemId).forEach((x) => Object.assign(x, x.original || base));
+        back();
+      },
+    }, '↩︎ Revenir à la version d’origine') : null,
+  ]);
+};
+
 // --- Démarrage --------------------------------------------------------------
 
 // Les consignes se font lire à voix haute : indispensable quand on ne sait pas lire.
@@ -1686,6 +1796,7 @@ document.addEventListener('click', (e) => {
 });
 
 async function boot() {
+  applyOverrides();
   await audio.loadRecordedIndex();
   audio.setSynthesisAllowed(!store.settings().realVoiceOnly);
   reset(store.active() ? 'home' : 'profiles');

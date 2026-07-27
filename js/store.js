@@ -54,7 +54,10 @@ const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000)
 // que de n'entendre personne.
 const DEFAULT_SETTINGS = { speech: false, realVoiceOnly: false };
 
-const blank = () => ({ profiles: [], activeId: null, settings: { ...DEFAULT_SETTINGS } });
+// Corrections apportées au vocabulaire par la famille. Le contenu livré est
+// écrit par quelqu'un qui n'est pas locuteur natif : il doit pouvoir être
+// repris sur le téléphone, sans passer par le code.
+const blank = () => ({ profiles: [], activeId: null, settings: { ...DEFAULT_SETTINGS }, overrides: {} });
 
 let state = load();
 
@@ -79,6 +82,40 @@ function save() {
 
 export function profiles() {
   return state.profiles;
+}
+
+export function overrides() {
+  state.overrides = state.overrides || {};
+  return state.overrides;
+}
+
+/** Corrige un mot. Les champs vides ou identiques à l'original sont ignorés. */
+export function setOverride(itemId, patch) {
+  const clean = {};
+  for (const [k, v] of Object.entries(patch)) {
+    if (typeof v === 'string' && v.trim()) clean[k] = v.trim();
+  }
+  if (Object.keys(clean).length) overrides()[itemId] = clean;
+  else delete overrides()[itemId];
+  save();
+}
+
+export function clearOverride(itemId) {
+  delete overrides()[itemId];
+  save();
+}
+
+export function exportOverrides() {
+  return JSON.stringify({ version: 1, createdAt: todayKey(), overrides: overrides() }, null, 2);
+}
+
+export function importOverrides(json) {
+  const parsed = JSON.parse(json);
+  const incoming = parsed.overrides || parsed;
+  if (!incoming || typeof incoming !== 'object') throw new Error('Fichier invalide');
+  Object.assign(overrides(), incoming);
+  save();
+  return Object.keys(incoming).length;
 }
 
 export function settings() {
